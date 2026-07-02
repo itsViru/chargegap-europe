@@ -23,8 +23,7 @@
     invest: { ...M.INVEST_DEFAULTS },
     tab: "dashboard",
     sort: { key: "score", dir: -1 },
-    an: { countries: [...CODES], dv: "registrations",
-          preds: M.PANEL_VARS.slice(1).map(v => v.key), x: "wallbox_evs" }
+    site: { preset: "hpc150", inputs: { ...M.SITE_PRESETS.hpc150 } }
   };
 
   /* ── scenario permalinks: #tab/CC/i80ac13dc9s130 ───────────────────── */
@@ -39,7 +38,8 @@
   }
   (function readHash() {
     const h = location.hash.replace("#", "").split("/");
-    if (["dashboard", "compare", "analytics", "audit"].includes(h[0])) state.tab = h[0];
+    if (h[0] === "analytics") h[0] = "site";               // legacy links
+    if (["dashboard", "compare", "site", "audit"].includes(h[0])) state.tab = h[0];
     if (h[1] && CODES.includes(h[1])) state.country = h[1];
     const p = decodeParams(h[2]);
     if (p) state.params = p;
@@ -342,138 +342,141 @@
     });
   }
 
-  /* ── analytics (interactive panel builder) ─────────────────────────── */
-  function chip(label, on, extra) {
-    return `<button class="chip ${on ? "on" : ""}" ${extra || ""}>${label}</button>`;
-  }
-  function renderBuilder() {
-    $("#pbCountries").innerHTML = DATA.countries.map(c =>
-      chip(`${c.flag} ${c.code}`, state.an.countries.includes(c.code), `data-c="${c.code}"`)).join("");
-    $$("#pbCountries .chip").forEach(b => b.onclick = () => {
-      const c = b.dataset.c, set = new Set(state.an.countries);
-      set.has(c) ? set.delete(c) : set.add(c);
-      if (set.size < 5) return flash(b);           // keep the panel statistically sane
-      state.an.countries = CODES.filter(x => set.has(x));
-      renderAnalytics();
+  /* ── site economics (Standort-Check, Germany) ─────────────────────── */
+  const ST_FIELDS = [
+    ["Site & grid", [
+      ["power", "Connection power / point", "kW", 1],
+      ["hardware", "Hardware", "€", 500],
+      ["install", "Installation & civil works", "€", 500],
+      ["grid", "Grid connection & BKZ", "€", 500],
+      ["delayMonths", "Time to energise", "months", 1],
+      ["lifetime", "Hardware lifetime", "yrs", 1]
+    ]],
+    ["Revenue", [
+      ["price", "Ad-hoc price (incl. 19% VAT)", "€/kWh", 0.01],
+      ["adhocShare", "Ad-hoc share of volume", "%", 5, "pct"],
+      ["roamingNet", "Roaming / MSP price (net)", "€/kWh", 0.01],
+      ["kwhSession", "Energy per session", "kWh", 1],
+      ["thg", "THG proceeds", "ct/kWh", 1, "ct"],
+      ["blocking", "Blocking-fee income", "€/yr", 50]
+    ]],
+    ["Operating costs", [
+      ["energyCost", "Energy incl. levies (net)", "€/kWh", 0.01],
+      ["demandCharge", "Demand charge (Leistungspreis)", "€/kW·a", 5],
+      ["payFee", "Payment & roaming fees", "% of rev.", 1, "pct"],
+      ["maint", "Maintenance & service", "€/yr", 50],
+      ["backend", "Backend / CPMS & Eichrecht", "€/yr", 20],
+      ["lease", "Site lease", "€/yr", 50]
+    ]]
+  ];
+  const stToUi = (k, v, kind) => kind === "pct" ? Math.round(v * 100) : kind === "ct" ? Math.round(v * 100) : v;
+  const stToModel = (v, kind) => kind === "pct" ? v / 100 : kind === "ct" ? v / 100 : v;
+  let siteBuilt = false;
+
+  function buildSiteUI() {
+    if (siteBuilt) return; siteBuilt = true;
+    $("#stPresets").innerHTML = Object.entries(M.SITE_PRESETS).map(([k, p]) =>
+      `<button class="chip ${k === state.site.preset ? "on" : ""}" data-sp="${k}">${p.label}</button>`).join("");
+    $$("#stPresets .chip").forEach(b => b.onclick = () => {
+      state.site.preset = b.dataset.sp;
+      state.site.inputs = { ...M.SITE_PRESETS[b.dataset.sp] };
+      $$("#stPresets .chip").forEach(x => x.classList.toggle("on", x === b));
+      fillSiteInputs(); recomputeSite();
     });
-    const DVS = [["registrations", "BEV Registrations (Δ stock)"], ["bev_stock", "BEV Stock (1 Jan)"]];
-    $("#pbDv").innerHTML = DVS.map(([k, l]) => chip(l, state.an.dv === k, `data-dv="${k}"`)).join("");
-    $$("#pbDv .chip").forEach(b => b.onclick = () => { state.an.dv = b.dataset.dv; renderAnalytics(); });
-    $("#pbPreds").innerHTML = M.PANEL_VARS.slice(1).map(v =>
-      chip(v.label, state.an.preds.includes(v.key), `data-p="${v.key}"`)).join("");
-    $$("#pbPreds .chip").forEach(b => b.onclick = () => {
-      const k = b.dataset.p, set = new Set(state.an.preds);
-      set.has(k) ? set.delete(k) : set.add(k);
-      if (set.size < 1) return flash(b);
-      state.an.preds = M.PANEL_VARS.slice(1).map(v => v.key).filter(x => set.has(x));
-      renderAnalytics();
-    });
-  }
-  function flash(el) { el.classList.add("deny"); setTimeout(() => el.classList.remove("deny"), 350); }
-
-  function renderRanks(an) {
-    const inc = DATA.countries.filter(c => state.an.countries.includes(c.code));
-    const me = cty();
-    if (!state.an.countries.includes(me.code)) {
-      $("#ranks").innerHTML = `<span class="chip">${me.flag} ${me.name} is excluded from the current panel</span>`;
-      return;
-    }
-    const last = c => c.years.length - 1;
-    const metrics = [
-      ["Registrations 2025", c => c.bev_stock[last(c)] - c.bev_stock[last(c) - 1], true],
-      ["Home-charging share", c => c.home_charge_share, true],
-      ["DC points / 1k BEV", c => c.dc_points[last(c)] / (c.bev_stock[last(c)] / 1000), true],
-      ["AC price (cheapest)", c => c.ac_price_2025, false]
-    ];
-    $("#ranks").innerHTML = `<span class="pb-lab" style="align-self:center">Where ${me.flag} sits</span>` + metrics.map(([label, fn, descending]) => {
-      const sorted = [...inc].sort((a, b) => descending ? fn(b) - fn(a) : fn(a) - fn(b));
-      const pos = sorted.findIndex(c => c.code === me.code) + 1;
-      return `<span class="chip rank">${label}: <b>#${pos}</b>/${inc.length}</span>`;
-    }).join("");
-  }
-
-  function renderAnalytics() {
-    renderBuilder();
-    const an = M.analyticsCustom(DATA, { countries: state.an.countries, dv: state.an.dv, predictors: state.an.preds });
-    $("#anErr").innerHTML = an.err ? `<div class="callout warn" style="margin:0 0 0.9rem">${an.err}</div>` : "";
-    renderRanks(an);
-
-    // heatmap (dynamic size)
-    const V = an.vars, n = V.length, heat = $("#heat");
-    heat.style.gridTemplateColumns = `120px repeat(${n}, 1fr)`;
-    const short = l => l.replace(" (proxy)", "").replace(" (Δ stock)", "").replace(" (1 Jan)", "");
-    let html = `<div></div>` + V.map(v => `<div class="vlab">${short(v.label)}</div>`).join("");
-    an.corr.forEach((row, i) => {
-      html += `<div class="hlab">${short(V[i].label)}</div>`;
-      row.forEach(cell => {
-        const r = cell.r, a = Math.abs(r);
-        const bg = r >= 0 ? `rgba(182,255,60,${0.12 + a * 0.75})` : `rgba(255,107,107,${0.12 + a * 0.75})`;
-        const fg = a > 0.45 ? "#0a0a0a" : "rgba(245,245,245,0.75)";
-        html += `<div class="cell" style="background:${bg};color:${fg}" title="r = ${r.toFixed(3)} · p = ${cell.p.toExponential(1)}">${r.toFixed(2)}</div>`;
+    $("#stInputs").innerHTML = ST_FIELDS.map(([g, fields]) => `
+      <div class="st-group"><h4>${g}</h4>${fields.map(([k, label, unit, step, kind]) => `
+        <label class="st-field" for="st-${k}"><span>${label}</span>
+          <span class="st-in"><input id="st-${k}" type="number" step="${step}" min="0"> <i>${unit}</i></span>
+        </label>`).join("")}</div>`).join("");
+    ST_FIELDS.forEach(([g, fields]) => fields.forEach(([k, l, u, s, kind]) => {
+      $("#st-" + k).addEventListener("input", e => {
+        const v = parseFloat(e.target.value);
+        if (!isNaN(v) && v >= 0) { state.site.inputs[k] = stToModel(v, kind); markSitePreset(); recomputeSite(); }
       });
+    }));
+    $("#stUtil").addEventListener("input", e => {
+      state.site.inputs.util = parseFloat(e.target.value);
+      markSitePreset(); recomputeSite();
     });
-    heat.innerHTML = html;
+    fillSiteInputs();
+  }
+  function fillSiteInputs() {
+    ST_FIELDS.forEach(([g, fields]) => fields.forEach(([k, l, u, s, kind]) => {
+      $("#st-" + k).value = stToUi(k, state.site.inputs[k], kind);
+    }));
+    $("#stUtil").value = state.site.inputs.util;
+  }
+  function markSitePreset() {
+    $$("#stPresets .chip").forEach(b => {
+      const p = M.SITE_PRESETS[b.dataset.sp];
+      b.classList.toggle("on", Object.keys(p).every(k => k === "label" || Math.abs((p[k] ?? 0) - (state.site.inputs[k] ?? 0)) < 1e-9));
+    });
+  }
 
-    // scatter with X selector, per-market highlight, click-to-select
-    const xSel = $("#scX");
-    if (!an.preds.some(v => v.key === state.an.x)) state.an.x = an.preds[0].key;
-    xSel.innerHTML = an.preds.map(v => `<option value="${v.key}" ${v.key === state.an.x ? "selected" : ""}>${short(v.label)}</option>`).join("");
-    xSel.onchange = () => { state.an.x = xSel.value; renderAnalytics(); };
-    $("#scNote").innerHTML = `${cty().flag} ${cty().name}`;
-    const xv = an.panel.map(r => r[state.an.x]), yv = an.panel.map(r => r[an.dvVar.key]);
-    const mine = an.panel.map(r => r.country === state.country);
-    const fit = M.linfit(xv, yv);
-    const xMin = Math.min(...xv), xMax = Math.max(...xv);
-    upsertChart("chScatter", {
-      type: "scatter",
-      data: { datasets: [
-        { label: "panel country-years", data: an.panel.map((r, i) => ({ x: xv[i], y: yv[i] })),
-          pointBackgroundColor: mine.map(m => m ? COL.acid : "rgba(90,200,255,0.35)"),
-          pointBorderColor: mine.map(m => m ? COL.acid : "rgba(90,200,255,0.6)"),
-          pointRadius: mine.map(m => m ? 5 : 3) },
-        { type: "line", label: "OLS fit", data: [{ x: xMin, y: fit.a + fit.b * xMin }, { x: xMax, y: fit.a + fit.b * xMax }],
-          borderColor: "rgba(245,245,245,0.4)", borderDash: [5, 4], pointRadius: 0, fill: false }
+  const fmtYrs = v => Number.isFinite(v) ? v.toFixed(1) + " yrs" : "never";
+  function recomputeSite() {
+    const s = M.siteCase(state.site.inputs), i = s.inputs, B = M.SITE_BENCHMARKS;
+    $("#stUtilOut").textContent = (i.util * 100).toFixed(1) + "%  ·  " + s.hoursDay.toFixed(1) + " h/day  ·  " + s.sessionsDay.toFixed(1) + " sessions/day";
+
+    const beOk = Number.isFinite(s.uBreakEven);
+    $("#stTiles").innerHTML = `
+      <div class="tk"><div class="l">★ Break-even utilisation</div><div class="v ${beOk ? "" : "bad"}">${beOk ? (s.uBreakEven * 100).toFixed(1) + "%" : "—"}</div><div class="s">${beOk ? "EBITDA ≥ 0 above this · capex earned back within lifetime above " + (s.uPayback * 100).toFixed(1) + "%" : "margin per kWh is negative"}</div></div>
+      <div class="tk"><div class="l">EBITDA / yr</div><div class="v ${s.ebitda >= 0 ? "" : "bad"}">${fmtEur(s.ebitda)}</div><div class="s">revenue ${fmtEur(s.revenue)} − costs ${fmtEur(s.costs)}</div></div>
+      <div class="tk"><div class="l">Simple payback</div><div class="v ${Number.isFinite(s.payback) && s.payback <= i.lifetime ? "" : "warn"}">${fmtYrs(s.payback)}</div><div class="s">capex ${fmtEur(s.capex)} · + ${i.delayMonths} mo grid delay before revenue</div></div>
+      <div class="tk"><div class="l">Margin / kWh</div><div class="v ${s.marginKWh > 0 ? "cool" : "bad"}">€${s.marginKWh.toFixed(2)}</div><div class="s">blended net €${s.blendedNet.toFixed(2)} − energy − fees + THG</div></div>
+      <div class="tk"><div class="l">Energy sold / yr</div><div class="v cool">${fmtN(s.energy)} kWh</div><div class="s">${(i.adhocShare * 100).toFixed(0)}% ad-hoc · ${((1 - i.adhocShare) * 100).toFixed(0)}% roaming</div></div>`;
+
+    let verdict, cls;
+    const u = i.util;
+    if (!beOk) {
+      cls = "warn"; verdict = `<b>No utilisation can save this configuration</b> — the margin per kWh is negative. Raise the ad-hoc price, negotiate better roaming terms, or cut the energy cost before anything else.`;
+    } else if (u < s.uBreakEven) {
+      cls = "warn"; verdict = `At <b>${(u * 100).toFixed(1)}%</b> this point loses <b>${fmtEur(Math.abs(s.ebitda))}/yr</b>. Break-even sits at <b>${(s.uBreakEven * 100).toFixed(1)}%</b>. For context: German HPC averaged just ${(B.hpcAvg * 100).toFixed(0)}–7% in 2024/25 — this is exactly the market's problem.`;
+    } else if (u < s.uPayback) {
+      cls = "warn"; verdict = `Covers its running costs (EBITDA <b>${fmtEur(s.ebitda)}/yr</b>) but will <b>not</b> earn back the ${fmtEur(s.capex)} capex within its ${i.lifetime}-year lifetime — that needs ≥ <b>${(s.uPayback * 100).toFixed(1)}%</b> utilisation.`;
+    } else {
+      cls = ""; verdict = `<b>This site pencils.</b> Payback in <b>${fmtYrs(s.payback)}</b> at ${(u * 100).toFixed(1)}% utilisation (${s.sessionsDay.toFixed(1)} sessions/day) — ${((u - s.uBreakEven) * 100).toFixed(1)} pts of buffer above break-even. Note the Ø German occupancy is ${(B.occupancyDE * 100).toFixed(0)}% and only ~1% of HPC sites exceed ${(B.veryGood * 100).toFixed(0)}%: validate the utilisation assumption hardest.`;
+    }
+    $("#stVerdict").innerHTML = `<div class="callout ${cls}" style="margin:0 0 0.9rem">${verdict}</div>`;
+
+    // annual P&L
+    const row = (l, v, cls2) => `<tr><td style="text-align:left">${l}</td><td class="mono ${cls2 || ""}">${v}</td></tr>`;
+    $("#stPnl").innerHTML =
+      row("Charging revenue (net, blended)", fmtEur(s.revCharging)) +
+      row("THG-Quote proceeds", fmtEur(s.revThg)) +
+      (i.blocking ? row("Blocking fees", fmtEur(i.blocking)) : "") +
+      row("Energy incl. levies", "−" + fmtEur(s.costEnergy)) +
+      row("Demand charge (Leistungspreis)", "−" + fmtEur(s.costDemand)) +
+      row("Payment & roaming fees", "−" + fmtEur(s.costFees)) +
+      row("Fixed opex (service, backend, lease)", "−" + fmtEur(s.costFixed)) +
+      row("<b>EBITDA</b>", "<b>" + fmtEur(s.ebitda) + "</b>", s.ebitda >= 0 ? "good" : "bad");
+
+    // THG stress test
+    $("#stSensHead").innerHTML = `<th>Utilisation ↓</th><th>THG 0 ct</th><th>THG ${Math.round(i.thg * 100)} ct (base)</th><th>THG 15 ct</th>`;
+    $("#stSens").innerHTML = [0.75, 1, 1.25].map((f, r) => `<tr>
+      <td style="text-align:left">${(i.util * f * 100).toFixed(1)}%${f === 1 ? " (base)" : ""}</td>
+      ${s.sens[r].map((v, c) => `<td class="mono ${r === 1 && c === 1 ? "good" : ""}">${Number.isFinite(v) ? v.toFixed(1) : "—"}</td>`).join("")}
+    </tr>`).join("");
+
+    // cash curve
+    const labels = s.cash.map((_, m) => m);
+    upsertChart("chCash", {
+      type: "line",
+      data: { labels, datasets: [
+        { label: "Cumulative cash", data: s.cash, borderColor: COL.acid,
+          backgroundColor: "rgba(182,255,60,0.07)", fill: { target: { value: 0 }, above: "rgba(182,255,60,0.10)", below: "rgba(255,180,84,0.10)" },
+          pointRadius: 0, tension: 0.15, borderWidth: 2 },
+        { label: "break-even line", data: labels.map(() => 0), borderColor: "rgba(245,245,245,0.3)", borderDash: [5, 4], pointRadius: 0, borderWidth: 1 }
       ] },
       options: { maintainAspectRatio: false,
-        onClick: (e, els) => {
-          const el = els.find(x => x.datasetIndex === 0);
-          if (!el) return;
-          state.country = an.panel[el.index].country; sync();
-        },
-        scales: { x: { ticks: { callback: v => fmtN(v) } }, y: { ticks: { callback: v => fmtN(v) } } },
+        scales: { x: { ticks: { autoSkip: false, maxRotation: 0, callback: (v, idx) => idx % 12 === 0 ? (idx / 12) + "y" : "" } },
+                  y: { ticks: { callback: v => fmtEur(v) } } },
         plugins: { legend: { display: false }, tooltip: { callbacks: {
-          label: i => { const r = an.panel[i.dataIndex]; return ` ${r.country} ${r.year}: x=${fmtN(i.parsed.x)}, y=${fmtN(i.parsed.y)}`; } } } } }
+          title: it => "Month " + it[0].label,
+          label: it => " " + fmtEur(it.parsed.y) } } } }
     });
-
-    // OLS + VIF
-    if (an.model) {
-      $("#olsMeta").textContent = `Standardised OLS · DV: ${an.dvVar.label} · ${state.an.countries.length} markets · N = ${an.model.n} country-years · R² = ${an.model.r2.toFixed(3)} · adj. R² = ${an.model.adjR2.toFixed(3)}`;
-      $("#olsBody").innerHTML = an.model.terms.map(t => `
-        <tr>
-          <td>${t.name}</td>
-          <td class="mono">${t.beta.toFixed(3)}</td>
-          <td class="mono">${t.se.toFixed(3)}</td>
-          <td class="mono">${t.t.toFixed(2)}</td>
-          <td class="mono ${t.p < 0.05 ? "good" : ""}">${t.p < 0.0001 ? "<0.0001" : t.p.toFixed(4)}</td>
-          <td class="stars">${stars(t.p)}</td>
-        </tr>`).join("");
-      $("#vifBody").innerHTML = an.vif.map(v => `
-        <tr><td>${v.name}</td><td class="mono ${v.vif > 10 ? "warn" : ""}">${v.vif.toFixed(1)}</td></tr>`).join("");
-
-      const wb = an.model.terms.find(t => t.name.startsWith("EVs in Wallbox"));
-      if (wb && wb.p < 0.05) {
-        $("#anCallout").innerHTML =
-          `<b>The thesis finding holds on your panel selection:</b> home-charging access dominates ${an.dvVar.label.toLowerCase()} (β = ${wb.beta.toFixed(2)}, p ${wb.p < 0.0001 ? "< 0.0001" : "= " + wb.p.toFixed(4)}). The original 14-market study found the same — wallbox households r = 0.795, the strongest driver, with charging price near zero. <b>Infrastructure availability beats price.</b>`;
-      } else {
-        const sig = an.model.terms.slice(1).filter(t => t.p < 0.05).sort((a, b) => Math.abs(b.beta) - Math.abs(a.beta))[0];
-        $("#anCallout").innerHTML = sig
-          ? `On this selection, the strongest significant driver is <b>${sig.name}</b> (β = ${sig.beta.toFixed(2)}, p = ${sig.p.toFixed(4)}). Add the wallbox proxy back in to test the original study's headline (wallbox households r = 0.795, R² = 0.735).`
-          : `No predictor reaches p < 0.05 on this selection — widen the panel or add predictors. The original study's headline: wallbox access r = 0.795, R² = 0.735.`;
-      }
-    } else {
-      $("#olsMeta").textContent = ""; $("#olsBody").innerHTML = ""; $("#vifBody").innerHTML = ""; $("#anCallout").innerHTML = "";
-    }
   }
+  function renderSite() { buildSiteUI(); recomputeSite(); }
 
   /* ── model audit (live) ────────────────────────────────────────────── */
   function renderAudit() {
@@ -534,7 +537,7 @@
     renderCountries();
     if (state.tab === "dashboard") renderDashboard();
     if (state.tab === "compare") renderCompare();
-    if (state.tab === "analytics") renderAnalytics();
+    if (state.tab === "site") renderSite();
     if (state.tab === "audit") renderAudit();
   }
   $$(".tabs button").forEach(b => b.onclick = () => { state.tab = b.dataset.tab; sync(); });

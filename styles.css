@@ -216,6 +216,24 @@ footer { border-top: 1px solid var(--line); margin-top: 2rem; padding: 1.6rem 0 
 }
 .btn-dl:hover { background: rgba(182,255,60,0.18); }
 
+/* ── Standort-Check inputs ──────────────────────────────────────────── */
+.st-cols { display: grid; grid-template-columns: 1fr; gap: 1rem 1.6rem; margin-top: 1rem; }
+@media (min-width: 880px) { .st-cols { grid-template-columns: repeat(3, 1fr); } }
+.st-group h4 {
+  font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--acid); font-weight: 500;
+  padding-bottom: 0.35rem; margin-bottom: 0.4rem; border-bottom: 1px solid var(--line);
+}
+.st-field { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; padding: 0.22rem 0; }
+.st-field > span:first-child { font-size: 0.76rem; color: var(--ink-2); font-weight: 300; }
+.st-in { display: inline-flex; align-items: baseline; gap: 0.35em; white-space: nowrap; }
+.st-in input {
+  width: 78px; font-family: var(--mono); font-size: 0.72rem; text-align: right;
+  background: var(--bg-3); border: 1px solid var(--line-2); color: var(--acid);
+  border-radius: 8px; padding: 0.25em 0.5em;
+}
+.st-in i { font-family: var(--mono); font-style: normal; font-size: 0.58rem; color: var(--ink-3); min-width: 42px; }
+
 /* ── Panel builder chips ────────────────────────────────────────────── */
 .pb-row { display: flex; align-items: flex-start; gap: 0.7rem; margin-top: 0.55rem; }
 .pb-lab { flex: 0 0 78px; font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); padding-top: 0.45em; }

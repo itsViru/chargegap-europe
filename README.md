@@ -18,7 +18,7 @@ No backend. No build step. No tracking. One HTML file, two JS files, one JSON �
 |---|---|
 | **Dashboard** | Per-market scenario cockpit: 4 sliders (Urban Business Intensity · AC Efficiency · DC/HPC Efficiency · Adoption Speed) driving the ⭐ **Revenue Opportunity Gap** (with the first structural-undersupply year), cumulative unmet revenue 2026–30, **AFIR Compliance Index** (vs the 1.3 kW/BEV fleet minimum, EU 2023/1804, incl. first-breach year), Infrastructure Sufficiency, EVs per point, four charts — plus a **CPO build-out ticket**: additional plugs (80/20 AC/DC), capex, energy & revenue per year and simple payback with adjustable cost assumptions. |
 | **Compare** | One scenario, fourteen markets: an **Opportunity Score** (0–100 weighted composite: 40% unmet revenue · 20% AFIR shortfall · 20% EVs-per-point pressure · 20% fleet growth) with a top-pick callout, sortable league table and ranked Revenue-Gap bar chart. Surplus markets show in cyan, undersupplied in lime. |
-| **Analytics** | The thesis track, client-side and now fully interactive: a **panel builder** toggles markets in/out (min 5), switches the dependent variable and selects predictors — the Pearson heatmap, standardised OLS (β, SE, t, p, R², adj. R²), VIF diagnostics, a driver **scatter** (click a point to switch market) and "where this market sits" rank chips all recompute instantly. |
+| **Site Economics** | **Standort-Check** — per-charge-point unit economics under German conditions: 5 presets (AC 11/22, DC 50, HPC 150/300), a utilisation slider benchmarked against reality (Ø DE occupancy 12%, HPC Ø 6–7%, 30% = "very good"), ad-hoc/roaming revenue mix with 19% VAT handling, **THG-Quote proceeds**, demand charges (Leistungspreis), BKZ/grid capex with energisation delay — producing **break-even utilisation**, the utilisation needed to earn back capex within the hardware lifetime, EBITDA, simple payback, a 10-year cash curve and a **THG stress test** (payback at 0 / base / 15 ct). |
 | **Model Audit** | A **live audit trail**: the current market + scenario pushed through every Tableau field with real numbers plugged in — plus Validated Logic, projection rules, constants with sources, per-market provenance, refresh cadence, open-data endpoint and one-click JSON/CSV downloads. The dashboard's ⭐ KPI links straight to it ("audit this number →"). |
 
 **Scenario permalinks:** the URL hash encodes tab, market and all four sliders (`#dashboard/DE/i80ac13dc9s130`) — the cockpit's *Copy scenario link* button gives any stakeholder a URL that reproduces the exact case.
@@ -62,15 +62,13 @@ Constants (14,000 km/yr · 19 kWh/100 km · +12 % charging loss · €0.50/kWh b
 
 ---
 
-## The analytics track — the thesis, in your browser
+## Site Economics — the question every German CPO actually asks
 
-`js/model.js` implements Pearson correlations (with p-values), a standardised OLS with full inference (Gauss-Jordan inverse, Student-t via a regularised incomplete beta function, validated against critical-value tables), and VIF diagnostics. On the shipped panel (N = 112 country-years) the original study's headline replicates:
+The academic regression tab was retired in v3 and replaced with the **Standort-Check**: "does this site pencil, at what utilisation, and when do I get my money back?" It encodes the German specifics that generic calculators miss — the ad-hoc/roaming revenue split (drivers' prices carry 19% VAT; most volume settles at lower roaming rates), **THG-Quote proceeds** (2–6 ct/kWh in 2024, 3–6 ct in 2025, ~8–15 ct expected for 2026 — volatile by design of the market), **demand charges** (Leistungspreis, the profitability killer at low utilisation), the **BKZ** rule (no Baukostenzuschuss below 30 kW in low voltage, NAV §11(3)) and medium-voltage lead times of 12–24 months modelled as a revenue delay on the cash curve.
 
-- **EVs in wallbox households** (proxied as BEV stock × home-charging-possible share) dominates: β ≈ 0.75, p < 0.0001 — the thesis found r = 0.795, β = 0.43, p < 0.001.
-- **Population** is the baseline predictor — significant, secondary.
-- **Charging price** is not a robust standalone driver — infrastructure availability beats price.
+Grounded defaults, all editable: German public points averaged only **12% simultaneous occupancy in 2025** (BDEW); HPC averaged **6–7%** with only ~1% of sites above the **30%** "very good" mark (Elvah/Automobilwoche, Ionity). The verdict engine tells you plainly whether a configuration loses money, covers opex but never repays capex, or pencils — and stress-tests the THG dependency, because no serious operator should build a case on quota proceeds alone.
 
-The Analytics tab states its limitations explicitly (indicative snapshot, Δ-stock registration proxy, time-invariant wallbox share, collinear constructed price paths) — mirroring the honest-limitations section of the original study.
+The thesis statistics engine (Pearson, standardised OLS with full inference, VIF — validated against critical-value tables) **remains in `js/model.js`** as an MIT-licensed, dependency-free library (`analytics`, `analyticsCustom`, `_stats`); the wallbox-access finding it established lives on in the Urban-Business-Intensity slider of the macro model.
 
 ---
 
@@ -149,6 +147,8 @@ Only external dependency at runtime: Chart.js from a CDN. The model layer is pla
 
 - [ ] EAFO auto-ingest once a stable endpoint exists (replacing the manual CSV)
 - [ ] PHEV term in the AFIR index (0.8 kW per PHEV alongside 1.3 kW per BEV)
+- [ ] Standort-Check presets for further countries (AT, NL, FR) and Bundesland-level price/utilisation benchmarks
+- [ ] AFIR 2027 contactless-terminal retrofit as a one-click capex line
 - [ ] National ad-hoc price feeds (Mobilithek-style NAPs) to replace the €0.50 constant per market
 - [ ] Per-country mileage / consumption constants
 - [ ] Map view (choropleth of Revenue Gap and AFIR status)

@@ -21,7 +21,7 @@ window.CG_DATA = {
       "name": "Germany",
       "flag": "🇩🇪",
       "quality": "verified",
-      "population_m": 83.58,
+      "population_m": 84.5,
       "gdp_per_capita_keur": 49,
       "total_vehicles_m": 49.3,
       "home_charge_share": 0.42,
@@ -89,7 +89,7 @@ window.CG_DATA = {
       "name": "Norway",
       "flag": "🇳🇴",
       "quality": "indicative",
-      "population_m": 5.59,
+      "population_m": 5.5,
       "gdp_per_capita_keur": 87,
       "total_vehicles_m": 2.9,
       "home_charge_share": 0.78,
@@ -107,15 +107,15 @@ window.CG_DATA = {
         2025
       ],
       "bev_stock": [
-        97532,
-        138983,
-        195348,
-        260689,
-        343707,
-        465410,
-        607516,
-        689150,
-        788712
+        101000,
+        142000,
+        199000,
+        264000,
+        340000,
+        460000,
+        580000,
+        690000,
+        780000
       ],
       "ac_points": [
         7000,
@@ -153,7 +153,7 @@ window.CG_DATA = {
       "name": "France",
       "flag": "🇫🇷",
       "quality": "indicative",
-      "population_m": 68.88,
+      "population_m": 68.2,
       "gdp_per_capita_keur": 41,
       "total_vehicles_m": 39.3,
       "home_charge_share": 0.6,
@@ -171,15 +171,15 @@ window.CG_DATA = {
         2025
       ],
       "bev_stock": [
-        61338,
-        82481,
-        106489,
-        141353,
-        245112,
-        403329,
-        595858,
-        868138,
-        1132210
+        93000,
+        118000,
+        150000,
+        205000,
+        300000,
+        470000,
+        660000,
+        900000,
+        1150000
       ],
       "ac_points": [
         12000,
@@ -217,7 +217,7 @@ window.CG_DATA = {
       "name": "Netherlands",
       "flag": "🇳🇱",
       "quality": "indicative",
-      "population_m": 18.04,
+      "population_m": 17.9,
       "gdp_per_capita_keur": 57,
       "total_vehicles_m": 9,
       "home_charge_share": 0.7,
@@ -235,15 +235,15 @@ window.CG_DATA = {
         2025
       ],
       "bev_stock": [
-        13709,
-        21842,
-        44581,
-        106232,
-        173797,
-        245091,
-        330113,
-        444669,
-        569144
+        14000,
+        21000,
+        45000,
+        107000,
+        170000,
+        240000,
+        320000,
+        420000,
+        520000
       ],
       "ac_points": [
         30000,
@@ -281,7 +281,7 @@ window.CG_DATA = {
       "name": "United Kingdom",
       "flag": "🇬🇧",
       "quality": "indicative",
-      "population_m": 67.03,
+      "population_m": 68.3,
       "gdp_per_capita_keur": 42,
       "total_vehicles_m": 33.8,
       "home_charge_share": 0.76,
@@ -299,15 +299,15 @@ window.CG_DATA = {
         2025
       ],
       "bev_stock": [
-        33434,
-        41218,
-        55335,
+        30000,
+        45000,
+        65000,
         100000,
         210000,
-        374598,
-        620632,
-        916576,
-        1266421
+        400000,
+        620000,
+        900000,
+        1200000
       ],
       "ac_points": [
         9000,
@@ -345,7 +345,7 @@ window.CG_DATA = {
       "name": "Austria",
       "flag": "🇦🇹",
       "quality": "indicative",
-      "population_m": 9.2,
+      "population_m": 9.1,
       "gdp_per_capita_keur": 52,
       "total_vehicles_m": 5.2,
       "home_charge_share": 0.48,
@@ -363,15 +363,15 @@ window.CG_DATA = {
         2025
       ],
       "bev_stock": [
-        9073,
-        14618,
-        20831,
-        29523,
-        44507,
-        76539,
-        110225,
-        155490,
-        200603
+        9000,
+        14000,
+        21000,
+        30000,
+        44000,
+        77000,
+        110000,
+        155000,
+        200000
       ],
       "ac_points": [
         3000,
@@ -409,7 +409,7 @@ window.CG_DATA = {
       "name": "Spain",
       "flag": "🇪🇸",
       "quality": "indicative",
-      "population_m": 49.13,
+      "population_m": 48.6,
       "gdp_per_capita_keur": 31,
       "total_vehicles_m": 25.5,
       "home_charge_share": 0.33,
@@ -427,15 +427,15 @@ window.CG_DATA = {
         2025
       ],
       "bev_stock": [
-        5756,
-        9681,
-        15865,
-        26197,
-        43203,
-        66085,
-        95617,
-        150282,
-        208240
+        10000,
+        14000,
+        20000,
+        31000,
+        47000,
+        75000,
+        115000,
+        165000,
+        235000
       ],
       "ac_points": [
         3500,
@@ -473,7 +473,7 @@ window.CG_DATA = {
       "name": "Italy",
       "flag": "🇮🇹",
       "quality": "indicative",
-      "population_m": 58.94,
+      "population_m": 58.9,
       "gdp_per_capita_keur": 35,
       "total_vehicles_m": 40.2,
       "home_charge_share": 0.36,
@@ -491,15 +491,15 @@ window.CG_DATA = {
         2025
       ],
       "bev_stock": [
-        5743,
-        7560,
-        12156,
-        22728,
-        53079,
-        118034,
-        158131,
-        219540,
-        279607
+        7000,
+        10000,
+        15000,
+        23000,
+        54000,
+        115000,
+        165000,
+        215000,
+        270000
       ],
       "ac_points": [
         2000,
@@ -537,7 +537,7 @@ window.CG_DATA = {
       "name": "Belgium",
       "flag": "🇧🇪",
       "quality": "indicative",
-      "population_m": 11.88,
+      "population_m": 11.8,
       "gdp_per_capita_keur": 48,
       "total_vehicles_m": 6,
       "home_charge_share": 0.7,
@@ -555,15 +555,15 @@ window.CG_DATA = {
         2025
       ],
       "bev_stock": [
-        5207,
-        7557,
-        10893,
-        18724,
-        31773,
-        52375,
-        89811,
-        181447,
-        303784
+        6000,
+        9000,
+        14000,
+        22000,
+        38000,
+        68000,
+        115000,
+        190000,
+        270000
       ],
       "ac_points": [
         1200,
@@ -601,7 +601,7 @@ window.CG_DATA = {
       "name": "Sweden",
       "flag": "🇸🇪",
       "quality": "indicative",
-      "population_m": 10.59,
+      "population_m": 10.5,
       "gdp_per_capita_keur": 52,
       "total_vehicles_m": 5,
       "home_charge_share": 0.55,
@@ -619,15 +619,15 @@ window.CG_DATA = {
         2025
       ],
       "bev_stock": [
-        7532,
-        11034,
-        16664,
-        30343,
-        55790,
-        110177,
-        197709,
-        291673,
-        358255
+        6000,
+        9000,
+        15000,
+        28000,
+        56000,
+        110000,
+        175000,
+        250000,
+        330000
       ],
       "ac_points": [
         3500,
@@ -665,7 +665,7 @@ window.CG_DATA = {
       "name": "Denmark",
       "flag": "🇩🇰",
       "quality": "indicative",
-      "population_m": 5.99,
+      "population_m": 5.9,
       "gdp_per_capita_keur": 62,
       "total_vehicles_m": 2.8,
       "home_charge_share": 0.6,
@@ -683,15 +683,15 @@ window.CG_DATA = {
         2025
       ],
       "bev_stock": [
-        8662,
-        8764,
-        10037,
-        15504,
-        31886,
-        66610,
-        112674,
-        200110,
-        344438
+        7000,
+        9000,
+        11000,
+        16000,
+        33000,
+        65000,
+        110000,
+        165000,
+        235000
       ],
       "ac_points": [
         1800,
@@ -729,7 +729,7 @@ window.CG_DATA = {
       "name": "Finland",
       "flag": "🇫🇮",
       "quality": "indicative",
-      "population_m": 5.64,
+      "population_m": 5.6,
       "gdp_per_capita_keur": 46,
       "total_vehicles_m": 2.8,
       "home_charge_share": 0.62,
@@ -747,15 +747,15 @@ window.CG_DATA = {
         2025
       ],
       "bev_stock": [
-        889,
-        1538,
-        2500,
-        4830,
-        9959,
-        23497,
-        46584,
-        86011,
-        121539
+        1000,
+        2000,
+        3000,
+        5000,
+        10000,
+        21000,
+        38000,
+        58000,
+        83000
       ],
       "ac_points": [
         700,
@@ -793,7 +793,7 @@ window.CG_DATA = {
       "name": "Switzerland",
       "flag": "🇨🇭",
       "quality": "indicative",
-      "population_m": 9.05,
+      "population_m": 8.9,
       "gdp_per_capita_keur": 92,
       "total_vehicles_m": 4.8,
       "home_charge_share": 0.4,
@@ -811,15 +811,15 @@ window.CG_DATA = {
         2025
       ],
       "bev_stock": [
-        10727,
-        14543,
-        19185,
-        28722,
-        43405,
-        71715,
-        110788,
-        155556,
-        202626
+        11000,
+        15000,
+        21000,
+        32000,
+        51000,
+        80000,
+        110000,
+        145000,
+        185000
       ],
       "ac_points": [
         2600,
@@ -857,7 +857,7 @@ window.CG_DATA = {
       "name": "Czech Republic",
       "flag": "🇨🇿",
       "quality": "indicative",
-      "population_m": 10.91,
+      "population_m": 10.9,
       "gdp_per_capita_keur": 27,
       "total_vehicles_m": 6.6,
       "home_charge_share": 0.5,
@@ -875,15 +875,15 @@ window.CG_DATA = {
         2025
       ],
       "bev_stock": [
-        974,
-        1525,
-        3405,
-        4950,
-        8109,
-        9051,
-        14195,
-        22441,
-        36341
+        1000,
+        1500,
+        2500,
+        4000,
+        7000,
+        11000,
+        16000,
+        23000,
+        33000
       ],
       "ac_points": [
         400,
@@ -919,63 +919,6 @@ window.CG_DATA = {
   ],
   "refresh_log": {
     "date": "2026-07-02",
-    "detail": {
-      "DE": [
-        "bev_stock: 9/9 years from Eurostat",
-        "population_m: 83.58 (2025)"
-      ],
-      "NO": [
-        "bev_stock: 9/9 years from Eurostat",
-        "population_m: 5.59 (2025)"
-      ],
-      "FR": [
-        "bev_stock: 9/9 years from Eurostat",
-        "population_m: 68.88 (2025)"
-      ],
-      "NL": [
-        "bev_stock: 9/9 years from Eurostat",
-        "population_m: 18.04 (2025)"
-      ],
-      "UK": [
-        "bev_stock: 7/9 years from Eurostat",
-        "population_m: 67.03 (2020)"
-      ],
-      "AT": [
-        "bev_stock: 9/9 years from Eurostat",
-        "population_m: 9.2 (2025)"
-      ],
-      "ES": [
-        "bev_stock: 9/9 years from Eurostat",
-        "population_m: 49.13 (2025)"
-      ],
-      "IT": [
-        "bev_stock: 9/9 years from Eurostat",
-        "population_m: 58.94 (2025)"
-      ],
-      "BE": [
-        "bev_stock: 9/9 years from Eurostat",
-        "population_m: 11.88 (2025)"
-      ],
-      "SE": [
-        "bev_stock: 9/9 years from Eurostat",
-        "population_m: 10.59 (2025)"
-      ],
-      "DK": [
-        "bev_stock: 9/9 years from Eurostat",
-        "population_m: 5.99 (2025)"
-      ],
-      "FI": [
-        "bev_stock: 9/9 years from Eurostat",
-        "population_m: 5.64 (2025)"
-      ],
-      "CH": [
-        "bev_stock: 9/9 years from Eurostat",
-        "population_m: 9.05 (2025)"
-      ],
-      "CZ": [
-        "bev_stock: 9/9 years from Eurostat",
-        "population_m: 10.91 (2025)"
-      ]
-    }
+    "detail": {}
   }
 };

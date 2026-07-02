@@ -23,7 +23,7 @@
     <nav class="tabs" aria-label="Views">
       <button data-tab="dashboard" class="active">Dashboard</button>
       <button data-tab="compare">Compare</button>
-      <button data-tab="analytics">Analytics</button>
+      <button data-tab="site">Site Economics</button>
       <button data-tab="audit">Model Audit</button>
     </nav>
     <a class="hdr-gh" href="https://github.com/itsViru" target="_blank" rel="noopener">GitHub ↗</a>
@@ -42,7 +42,7 @@
   <section class="hero">
     <div class="hero-bg" aria-hidden="true"></div>
     <h1>How big is the 2030 charging gap —<br>and what is it <em>worth</em>?</h1>
-    <p class="sub">The Strategic Investment Planner model, extended from Germany to 14 European markets — with the E-Mobility Market Dynamics regression running live on the open panel. Move a slider; re-price a market.</p>
+    <p class="sub">The Strategic Investment Planner model, extended from Germany to 14 European markets — plus a per-site break-even calculator built for German CPO reality. Move a slider; re-price a market. Then check if your Standort actually pencils.</p>
   </section>
 
   <!-- ── Country selector ───────────────────────────────────────────── -->
@@ -106,57 +106,39 @@
     <p class="footnote">Opportunity Score = weighted min-max composite: 40% cumulative unmet revenue 2026–30 · 20% AFIR shortfall · 20% EVs-per-point pressure · 20% fleet growth — a screening heuristic, not investment advice. EU context: the Commission targets 3.5 M public points by 2030 (ACEA argues 8.8 M are needed); NL + FR + DE alone host ~61% of today's EU chargers.</p>
   </section>
 
-  <!-- ── View: Analytics ────────────────────────────────────────────── -->
-  <section id="view-analytics" class="view">
+  <!-- ── View: Site Economics (Standort-Check) ──────────────────────── -->
+  <section id="view-site" class="view">
     <div class="card" style="margin-bottom:0.9rem">
-      <h3>Panel builder <em>your regression, your rules</em></h3>
-      <div class="sub">Toggle markets in and out (min 5), pick the dependent variable and predictors (min 1) — every statistic below recomputes instantly</div>
-      <div class="pb-row"><span class="pb-lab">Markets</span><div id="pbCountries" class="chips"></div></div>
-      <div class="pb-row"><span class="pb-lab">Dependent</span><div id="pbDv" class="chips"></div></div>
-      <div class="pb-row"><span class="pb-lab">Predictors</span><div id="pbPreds" class="chips"></div></div>
-      <div id="pbMeta" class="sub" style="margin-top:0.6rem"></div>
-      <div id="ranks" class="chips" style="margin-top:0.4rem"></div>
+      <h3>Standort-Check <em>does this site pencil?</em></h3>
+      <div class="sub">Per-charge-point unit economics under German conditions — THG-Quote, roaming mix, Leistungspreis, BKZ, 19% VAT. Every default is editable; replace with your own cost base. Planning heuristic, not investment advice.</div>
+      <div id="stPresets" class="chips" style="margin:0.5rem 0 0.9rem"></div>
+      <div class="sl" style="max-width:640px">
+        <label for="stUtil">Utilisation (share of 8,760 h dispensing at full power) <output id="stUtilOut"></output></label>
+        <input id="stUtil" type="range" min="0.005" max="0.40" step="0.005" aria-label="Utilisation">
+        <div class="scale"><span>0.5%</span><span>Ø DE 12% · HPC Ø 6–7% · 15% viability · 30% "very good"</span><span>40%</span></div>
+      </div>
+      <div id="stInputs" class="st-cols"></div>
     </div>
-    <div id="anErr"></div>
+
+    <div id="stTiles" class="ticket-grid" style="margin-bottom:0.9rem" aria-live="polite"></div>
+    <div id="stVerdict"></div>
+
     <div class="grid2">
       <div class="card">
-        <h3>Pearson correlations <em>what moves together?</em></h3>
-        <div class="sub">Country-year panel 2018–2025 · hover a cell for r and p</div>
-        <div id="heat" class="heat" role="img" aria-label="Correlation heatmap"></div>
+        <h3>10-year cash curve <em>when do you get your money back?</em></h3>
+        <div class="sub">−capex at order · revenue starts after grid energisation (delay months) · zero-crossing = simple payback</div>
+        <div class="chart-wrap"><canvas id="chCash"></canvas></div>
       </div>
       <div class="card">
-        <h3>Scatter <em>see the driver</em></h3>
-        <div class="sub">X-axis: <select id="scX" class="sel"></select> · <span id="scNote"></span> highlighted · click a point to switch market</div>
-        <div class="chart-wrap" style="height:270px"><canvas id="chScatter"></canvas></div>
+        <h3>Annual P&amp;L <em>and the THG stress test</em></h3>
+        <div class="sub">All € net per charge point per year · THG proceeds are volatile — never build the case on them alone</div>
+        <div class="tbl-wrap" style="border:0"><table aria-label="Annual P&L"><tbody id="stPnl"></tbody></table></div>
+        <div class="sub" style="margin-top:0.7rem">Payback (years) under utilisation ×0.75 / ×1 / ×1.25 vs THG proceeds:</div>
+        <div class="tbl-wrap" style="border:0"><table aria-label="THG stress test"><thead><tr id="stSensHead"></tr></thead><tbody id="stSens"></tbody></table></div>
       </div>
     </div>
-    <div class="card" style="margin:0.9rem 0">
-      <h3>OLS regression <em>the thesis model, re-run in your browser</em></h3>
-      <div class="sub" id="olsMeta"></div>
-      <div class="tbl-wrap" style="border:0">
-        <table aria-label="OLS regression results">
-          <thead><tr><th>Variable</th><th>β (std.)</th><th>SE</th><th>t</th><th>p-value</th><th>sig.</th></tr></thead>
-          <tbody id="olsBody"></tbody>
-        </table>
-      </div>
-      <div id="anCallout" class="callout"></div>
-    </div>
-    <div class="grid2">
-      <div class="card">
-        <h3>Multicollinearity <em>VIF diagnostics</em></h3>
-        <div class="sub">VIF &gt; 10 flags shared explanatory power, as discussed in the original study</div>
-        <div class="tbl-wrap" style="border:0">
-          <table aria-label="VIF diagnostics"><thead><tr><th>Predictor</th><th>VIF</th></tr></thead><tbody id="vifBody"></tbody></table>
-        </div>
-      </div>
-      <div class="card">
-        <h3>Read this honestly <em>limitations</em></h3>
-        <div class="callout warn" style="margin:0.4rem 0 0">
-          Thirteen of fourteen series are an <b>indicative snapshot</b>, so treat coefficients as a methodology demonstration until you refresh the data. <b>Registrations are proxied by net stock change</b> (ignores scrappage/exports). <b>Wallbox EVs</b> = BEV stock × a time-invariant home-charging-possible share — a documented proxy for the thesis variable, which used household-level data. The constructed <b>price paths share one trend</b>, so including both AC and DC price inflates their VIFs (~30): their coefficients share power and should not be read individually — the same multicollinearity caveat the original study reports for its infrastructure variables.
-        </div>
-      </div>
-    </div>
-    <p class="footnote">Original study: <b>E-Mobility Market Dynamics</b> (RWTH Aachen × Numbat GmbH, 2024) — 14 countries, R² = 0.735, wallbox access r = 0.795 (strongest driver), charging price r ≈ 0. This tab re-implements its quantitative track (Pearson + standardised OLS + VIF) in dependency-free JavaScript, now with a configurable panel.</p>
+
+    <p class="footnote">Benchmarks: Ø simultaneous occupancy of all German public points 2025 = <b>12%</b> (BDEW Elektromobilitätsmonitor); HPC average utilisation ≈ <b>6–7%</b>, only ~1% of HPC sites exceed <b>30%</b> ("very good", Ionity via Automobilwoche/Elvah); EU EV Charging Masterplan puts viability at ≈ <b>15%</b> average utilisation. THG-Quote proceeds for public points: ~2–6 ct/kWh (2024), ~3–6 ct (2025), ~<b>8–15 ct expected for 2026</b> — historically volatile, plan conservatively. Grid: below 30 kW connection power no Baukostenzuschuss in low voltage (NAV §11(3)); from roughly one 150 kW unit upwards expect medium voltage, transformer and 12–24 months lead time. Ad-hoc prices are entered <b>incl. 19% VAT</b> (as drivers see them) and converted to net internally; roaming/MSP volume settles below ad-hoc — the mix slider is one of your biggest levers.</p>
   </section>
 
   <!-- ── View: Model Audit ──────────────────────────────────────────── -->
@@ -198,7 +180,7 @@ AFIR fleet minimum: ≥ 1.3 kW public charging per registered BEV (EU 2023/1804)
     </p>
 
     <h2>Credits &amp; lineage</h2>
-    <p>Model architecture, formulas, constants and the Validated-Logic principle come from the author's <b>Strategic Investment Planner: Germany 2030</b> (Tableau, case study for a management consultancy). The analytics track re-implements the quantitative methodology of the master thesis <b>E-Mobility Market Dynamics — Drivers, Regulations, and Infrastructure Analysis</b> (RWTH Aachen University × Numbat GmbH, 2024). ChargeGap Europe is an independent open-source project; the open-data, AFIR-aware product framing is inspired by live-data tools like ChargeIntel (chargeintel.eu), with which this project is <b>not affiliated</b> — ChargeIntel streams live CPO ad-hoc prices, ChargeGap models investment scenarios and market dynamics.</p>
+    <p>Model architecture, formulas, constants and the Validated-Logic principle come from the author's <b>Strategic Investment Planner: Germany 2030</b> (Tableau, case study for a management consultancy). The statistics engine of the master thesis <b>E-Mobility Market Dynamics</b> (RWTH Aachen University × Numbat GmbH, 2024) remains available as an MIT-licensed library in <code class="inline">js/model.js</code>; its headline finding — home-charging access drives adoption — lives on in the Urban-Business-Intensity slider. The Standort-Check tab carries German-market defaults sourced from BDEW, Elvah/Automobilwoche, NAV §11 and the 2026 THG-quota market; all are editable planning heuristics, not advice. ChargeGap Europe is an independent open-source project; the open-data, AFIR-aware product framing is inspired by live-data tools like ChargeIntel (chargeintel.eu), with which this project is <b>not affiliated</b> — ChargeIntel streams live CPO ad-hoc prices, ChargeGap models investment scenarios and market dynamics.</p>
   </section>
 </main>
 

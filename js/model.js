@@ -415,8 +415,119 @@
     return { panel, vars, dvVar, preds, corr, model, vif, err, cols };
   }
 
+  /* ------------------------------------------------------------------ */
+  /* Part 4 — Standort-Check: per-site unit economics (Germany)          */
+  /* All € net unless noted. Sources: BDEW Elektromobilitätsmonitor 2025 */
+  /* (Ø 12% occupancy), Elvah/Automobilwoche (HPC Ø 6–7%, 30% = "very    */
+  /* good" per Ionity), NAV §11(3) (BKZ above 30 kW), THG market 2026    */
+  /* (~8–15 ct/kWh, volatile), MV demand charges (Leistungspreis).       */
+  /* ------------------------------------------------------------------ */
+
+  const SITE_BENCHMARKS = {
+    occupancyDE: 0.12,        // Ø simultaneous occupancy, all public points 2025 (BDEW)
+    hpcAvg: 0.065,            // Ø HPC utilisation H2-2024 (Elvah/Automobilwoche)
+    veryGood: 0.30,           // "very good" per Ionity — reached by ~1% of HPC sites
+    masterplanViability: 0.15 // ~15% avg utilisation needed for viability (EU EV Charging Masterplan)
+  };
+
+  /** Per-charge-point presets (editable defaults, € net). */
+  const SITE_PRESETS = {
+    ac11:  { label: "AC 11 kW · Destination", power: 11,  hardware: 3500,  install: 2500,
+             grid: 800,   delayMonths: 3,  lifetime: 10, price: 0.55, adhocShare: 0.25,
+             roamingNet: 0.38, util: 0.06, kwhSession: 11, thg: 0.08, blocking: 0,
+             energyCost: 0.27, demandCharge: 0,  payFee: 0.05, maint: 300,  backend: 240, lease: 0 },
+    ac22:  { label: "AC 22 kW · Curbside", power: 22,  hardware: 4500,  install: 4000,
+             grid: 1500,  delayMonths: 4,  lifetime: 10, price: 0.59, adhocShare: 0.25,
+             roamingNet: 0.38, util: 0.06, kwhSession: 13, thg: 0.08, blocking: 0,
+             energyCost: 0.27, demandCharge: 0,  payFee: 0.05, maint: 350,  backend: 240, lease: 300 },
+    dc50:  { label: "DC 50 kW · Retail", power: 50,  hardware: 28000, install: 9000,
+             grid: 6000,  delayMonths: 6,  lifetime: 10, price: 0.64, adhocShare: 0.25,
+             roamingNet: 0.42, util: 0.08, kwhSession: 22, thg: 0.08, blocking: 0,
+             energyCost: 0.24, demandCharge: 40, payFee: 0.05, maint: 1200, backend: 360, lease: 600 },
+    hpc150:{ label: "HPC 150 kW", power: 150, hardware: 60000, install: 20000,
+             grid: 35000, delayMonths: 12, lifetime: 10, price: 0.69, adhocShare: 0.25,
+             roamingNet: 0.45, util: 0.09, kwhSession: 30, thg: 0.08, blocking: 0,
+             energyCost: 0.16, demandCharge: 80, payFee: 0.05, maint: 2500, backend: 420, lease: 1200 },
+    hpc300:{ label: "HPC 300 kW · Hub", power: 300, hardware: 90000, install: 25000,
+             grid: 45000, delayMonths: 15, lifetime: 10, price: 0.74, adhocShare: 0.25,
+             roamingNet: 0.45, util: 0.10, kwhSession: 34, thg: 0.08, blocking: 0,
+             energyCost: 0.15, demandCharge: 80, payFee: 0.05, maint: 3000, backend: 480, lease: 1500 }
+  };
+
+  const VAT = 1.19;
+
+  /**
+   * Standort-Check: annual P&L, break-even utilisation, payback and a
+   * 10-year cash curve for ONE charge point under German conditions.
+   * Planning heuristic — every default is editable and must be replaced
+   * with the operator's own cost base for a real investment decision.
+   */
+  function siteCase(inp) {
+    const i = Object.assign({}, SITE_PRESETS.hpc150, inp || {});
+    const energy = i.power * C.HOURS_YR * i.util;                       // kWh/yr
+    const hoursDay = 24 * i.util;
+    const sessionsDay = i.kwhSession > 0 ? energy / 365 / i.kwhSession : 0;
+
+    // Revenue: ad-hoc (driver price incl. 19% VAT → net) + roaming (net) mix,
+    // THG proceeds per kWh, optional blocking-fee income.
+    const blendedNet = i.adhocShare * (i.price / VAT) + (1 - i.adhocShare) * i.roamingNet;
+    const revCharging = energy * blendedNet;
+    const revThg = energy * i.thg;
+    const revenue = revCharging + revThg + i.blocking;
+
+    // Costs: volumetric energy (procurement + levies + volumetric grid fee),
+    // demand charge on connection power (Leistungspreis — the German killer
+    // at low utilisation), payment/roaming fees, fixed opex.
+    const costEnergy = energy * i.energyCost;
+    const costDemand = i.power * i.demandCharge;
+    const costFees = revCharging * i.payFee;
+    const costFixed = i.maint + i.backend + i.lease;
+    const costs = costEnergy + costDemand + costFees + costFixed;
+
+    const ebitda = revenue - costs;
+    const capex = i.hardware + i.install + i.grid;
+
+    // Contribution margin per kWh (after fees, energy, THG)
+    const marginKWh = blendedNet * (1 - i.payFee) - i.energyCost + i.thg;
+    const fixedAll = costDemand + costFixed - i.blocking;               // covered by margin
+    const denom = i.power * C.HOURS_YR * marginKWh;
+    const uBreakEven = marginKWh > 0 ? fixedAll / denom : Infinity;     // EBITDA = 0
+    const uPayback = marginKWh > 0
+      ? (capex / i.lifetime + fixedAll) / denom : Infinity;             // capex earned back within lifetime
+    const payback = ebitda > 0 ? capex / ebitda : Infinity;
+
+    // 10-year monthly cash curve; revenue starts after grid energisation.
+    const cash = []; let acc = -capex;
+    for (let m = 0; m <= 120; m++) {
+      if (m > 0 && m > i.delayMonths) acc += ebitda / 12;
+      cash.push(acc);
+    }
+
+    // THG stress test: payback at utilisation ×0.75/1/1.25 × THG {0, base, 15 ct}
+    const sens = [0.75, 1, 1.25].map(f => [0, i.thg, 0.15].map(t => {
+      const s = siteCaseLite(Object.assign({}, i, { util: i.util * f, thg: t }));
+      return s.ebitda > 0 ? capex / s.ebitda : Infinity;
+    }));
+
+    return { inputs: i, energy, hoursDay, sessionsDay, blendedNet,
+             revCharging, revThg, revenue,
+             costEnergy, costDemand, costFees, costFixed, costs,
+             ebitda, capex, marginKWh, uBreakEven, uPayback, payback, cash, sens };
+  }
+  // EBITDA-only core, reused by the sensitivity grid (no recursion into sens)
+  function siteCaseLite(i) {
+    const energy = i.power * C.HOURS_YR * i.util;
+    const blendedNet = i.adhocShare * (i.price / VAT) + (1 - i.adhocShare) * i.roamingNet;
+    const revCharging = energy * blendedNet;
+    const revenue = revCharging + energy * i.thg + i.blocking;
+    const costs = energy * i.energyCost + i.power * i.demandCharge +
+                  revCharging * i.payFee + i.maint + i.backend + i.lease;
+    return { ebitda: revenue - costs };
+  }
+
   return { C, buildScenario, analytics, analyticsCustom, buildPanel, PANEL_VARS,
            investCase, INVEST_DEFAULTS, opportunityScores, SCORE_WEIGHTS,
            firstYear, linfit,
+           SITE_PRESETS, SITE_BENCHMARKS, siteCase, VAT,
            _stats: { ols, pearson, tPvalue, ibeta, zscore, inverse } };
 });
