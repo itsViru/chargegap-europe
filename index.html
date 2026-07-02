@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChargeGap Europe — Open EV Charging Investment Planner · 14 Markets · 2030</title>
+<meta name="description" content="Open-source EV charging investment planner for 14 European markets: scenario cockpit, Revenue Opportunity Gap, AFIR compliance, build-out economics, opportunity ranking, and a live re-run of the E-Mobility Market Dynamics regression — all in the browser.">
+<meta property="og:title" content="ChargeGap Europe">
+<meta property="og:description" content="Scenario-test the 2030 EV charging gap across 14 European markets — demand, supply, revenue opportunity, AFIR compliance, build-out economics and live market-dynamics statistics. Open source, open data.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────────────── -->
+<header class="hdr">
+  <div class="hdr-inner">
+    <a class="brand" href="#dashboard/DE"><span class="dot" aria-hidden="true"></span>ChargeGap <em>Europe</em></a>
+    <span class="hdr-meta" id="dataChip"></span>
+    <nav class="tabs" aria-label="Views">
+      <button data-tab="dashboard" class="active">Dashboard</button>
+      <button data-tab="compare">Compare</button>
+      <button data-tab="analytics">Analytics</button>
+      <button data-tab="audit">Model Audit</button>
+    </nav>
+    <a class="hdr-gh" href="https://github.com/itsViru" target="_blank" rel="noopener">GitHub ↗</a>
+  </div>
+</header>
+
+<!-- ── Snapshot banner ────────────────────────────────────────────────── -->
+<div class="banner" role="note">
+  <b>Indicative data snapshot</b> · Germany is source-verified (KBA / Bundesnetzagentur); the other 13 markets are rounded estimates for demonstration.
+  Refresh from Eurostat / EAFO with <b>etl/fetch_data.py</b> or the scheduled GitHub Action before citing figures.
+</div>
+
+<main class="container">
+
+  <!-- ── Hero ───────────────────────────────────────────────────────── -->
+  <section class="hero">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <h1>How big is the 2030 charging gap —<br>and what is it <em>worth</em>?</h1>
+    <p class="sub">The Strategic Investment Planner model, extended from Germany to 14 European markets — with the E-Mobility Market Dynamics regression running live on the open panel. Move a slider; re-price a market.</p>
+  </section>
+
+  <!-- ── Country selector ───────────────────────────────────────────── -->
+  <div id="countries" class="countries" aria-label="Select market"></div>
+
+  <!-- ── Scenario cockpit ───────────────────────────────────────────── -->
+  <section class="cockpit" aria-label="Scenario controls">
+    <div class="cockpit-head">
+      <span class="cockpit-title">Scenario Cockpit</span>
+      <span class="lock-note">Validated Logic: 2017–2025 locked to empirical baselines — sliders act on 2026–2030 only</span>
+      <div id="presets" class="presets" role="group" aria-label="Scenario presets"></div>
+      <button id="copyLink" class="btn-dl" type="button" title="Copy a URL that reproduces this exact scenario">🔗 Copy scenario link</button>
+    </div>
+    <div id="sliders" class="sliders"></div>
+    <p class="lock-note" style="margin-top:0.7rem">Viability benchmark: the EU EV Charging Masterplan puts the average network utilisation needed for economic viability at <b style="color:var(--acid)">≈ 15%</b> — read the efficiency sliders against it.</p>
+  </section>
+
+  <!-- ── View: Dashboard ────────────────────────────────────────────── -->
+  <section id="view-dashboard" class="view active">
+    <div id="kpis" class="kpis" aria-live="polite"></div>
+    <div class="grid2">
+      <div class="card">
+        <h3>EV fleet trajectory <em>to 2030</em></h3>
+        <div class="sub">'C_Interactive_Fleet_Size' · history solid · projection dashed</div>
+        <div class="chart-wrap"><canvas id="chFleet"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Demand vs supply <em>the gap engine</em></h3>
+        <div class="sub">'C_Addressable_CPO_Market_GWh' vs 'C_Supply_Capacity_GWh' · amber fill = unserved demand</div>
+        <div class="chart-wrap"><canvas id="chGap"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>AFIR compliance <em>kW per BEV</em></h3>
+        <div class="sub">'C_AFIR_Compliance_Index' vs the 1.3 kW/BEV fleet minimum (EU 2023/1804)</div>
+        <div class="chart-wrap"><canvas id="chAfir"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Charging points <em>actual vs required</em></h3>
+        <div class="sub">'C_Required_Total_Plugs' at ~50 kW weighted average · 2.2× head-room factor</div>
+        <div class="chart-wrap"><canvas id="chPlugs"></canvas></div>
+      </div>
+    </div>
+    <div id="ticket" class="card ticket" aria-live="polite"></div>
+    <p id="srcnote" class="footnote"></p>
+  </section>
+
+  <!-- ── View: Compare ──────────────────────────────────────────────── -->
+  <section id="view-compare" class="view">
+    <div id="cmpTop" class="callout" style="margin-top:0"></div>
+    <div class="card" style="margin-bottom:0.9rem">
+      <h3>Revenue Opportunity Gap 2030 <em>one scenario, fourteen markets</em></h3>
+      <div class="sub">Current cockpit settings applied to every market · click a row to open its dashboard</div>
+      <div class="chart-wrap" style="height:340px"><canvas id="chCmp"></canvas></div>
+    </div>
+    <div class="tbl-wrap">
+      <table aria-label="Market comparison">
+        <thead><tr id="cmpHead"></tr></thead>
+        <tbody id="cmpBody"></tbody>
+      </table>
+    </div>
+    <p class="footnote">Opportunity Score = weighted min-max composite: 40% cumulative unmet revenue 2026–30 · 20% AFIR shortfall · 20% EVs-per-point pressure · 20% fleet growth — a screening heuristic, not investment advice. EU context: the Commission targets 3.5 M public points by 2030 (ACEA argues 8.8 M are needed); NL + FR + DE alone host ~61% of today's EU chargers.</p>
+  </section>
+
+  <!-- ── View: Analytics ────────────────────────────────────────────── -->
+  <section id="view-analytics" class="view">
+    <div class="card" style="margin-bottom:0.9rem">
+      <h3>Panel builder <em>your regression, your rules</em></h3>
+      <div class="sub">Toggle markets in and out (min 5), pick the dependent variable and predictors (min 1) — every statistic below recomputes instantly</div>
+      <div class="pb-row"><span class="pb-lab">Markets</span><div id="pbCountries" class="chips"></div></div>
+      <div class="pb-row"><span class="pb-lab">Dependent</span><div id="pbDv" class="chips"></div></div>
+      <div class="pb-row"><span class="pb-lab">Predictors</span><div id="pbPreds" class="chips"></div></div>
+      <div id="pbMeta" class="sub" style="margin-top:0.6rem"></div>
+      <div id="ranks" class="chips" style="margin-top:0.4rem"></div>
+    </div>
+    <div id="anErr"></div>
+    <div class="grid2">
+      <div class="card">
+        <h3>Pearson correlations <em>what moves together?</em></h3>
+        <div class="sub">Country-year panel 2018–2025 · hover a cell for r and p</div>
+        <div id="heat" class="heat" role="img" aria-label="Correlation heatmap"></div>
+      </div>
+      <div class="card">
+        <h3>Scatter <em>see the driver</em></h3>
+        <div class="sub">X-axis: <select id="scX" class="sel"></select> · <span id="scNote"></span> highlighted · click a point to switch market</div>
+        <div class="chart-wrap" style="height:270px"><canvas id="chScatter"></canvas></div>
+      </div>
+    </div>
+    <div class="card" style="margin:0.9rem 0">
+      <h3>OLS regression <em>the thesis model, re-run in your browser</em></h3>
+      <div class="sub" id="olsMeta"></div>
+      <div class="tbl-wrap" style="border:0">
+        <table aria-label="OLS regression results">
+          <thead><tr><th>Variable</th><th>β (std.)</th><th>SE</th><th>t</th><th>p-value</th><th>sig.</th></tr></thead>
+          <tbody id="olsBody"></tbody>
+        </table>
+      </div>
+      <div id="anCallout" class="callout"></div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h3>Multicollinearity <em>VIF diagnostics</em></h3>
+        <div class="sub">VIF &gt; 10 flags shared explanatory power, as discussed in the original study</div>
+        <div class="tbl-wrap" style="border:0">
+          <table aria-label="VIF diagnostics"><thead><tr><th>Predictor</th><th>VIF</th></tr></thead><tbody id="vifBody"></tbody></table>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Read this honestly <em>limitations</em></h3>
+        <div class="callout warn" style="margin:0.4rem 0 0">
+          Thirteen of fourteen series are an <b>indicative snapshot</b>, so treat coefficients as a methodology demonstration until you refresh the data. <b>Registrations are proxied by net stock change</b> (ignores scrappage/exports). <b>Wallbox EVs</b> = BEV stock × a time-invariant home-charging-possible share — a documented proxy for the thesis variable, which used household-level data. The constructed <b>price paths share one trend</b>, so including both AC and DC price inflates their VIFs (~30): their coefficients share power and should not be read individually — the same multicollinearity caveat the original study reports for its infrastructure variables.
+        </div>
+      </div>
+    </div>
+    <p class="footnote">Original study: <b>E-Mobility Market Dynamics</b> (RWTH Aachen × Numbat GmbH, 2024) — 14 countries, R² = 0.735, wallbox access r = 0.795 (strongest driver), charging price r ≈ 0. This tab re-implements its quantitative track (Pearson + standardised OLS + VIF) in dependency-free JavaScript, now with a configurable panel.</p>
+  </section>
+
+  <!-- ── View: Model Audit ──────────────────────────────────────────── -->
+  <section id="view-audit" class="view method">
+
+    <h2>Live audit trail <em>every number, traced</em></h2>
+    <p>This is the current <b id="auditWho"></b> scenario for <b>2030</b>, pushed through the model line by line — the exact Tableau calculated fields with today's inputs plugged in. Change a slider or the market and this table re-derives itself. If a client asks "where does the €-figure come from?", this is the answer.</p>
+    <div class="tbl-wrap"><table aria-label="Calculation audit"><thead><tr><th>Field (original Tableau name)</th><th>Calculation with current inputs</th><th>Result</th></tr></thead><tbody id="auditBody"></tbody></table></div>
+
+    <h2>Validated Logic <em>history can't be rewritten</em></h2>
+    <pre class="formula">IF Year <= 2025 THEN [Empirical Historical Baseline] ELSE [Slider Value] END
+   locked baselines: Intensity 0.30 · AC_Eff 0.06 · DC_Eff 0.20 · Speed 1.0×</pre>
+    <p>2017–2025 always renders from source-verified values with the workbook's locked baselines; the four sliders act on 2026–2030 only. If you drag a slider and 2023 doesn't move — that is intentional, and it is why the tool stays defensible in front of a client.</p>
+
+    <h2>Projection rules <em>2026–2030</em></h2>
+    <ul>
+      <li><b>Fleet:</b> where an official national 2030 target exists (Germany: 15 M, Masterplan Ladeinfrastruktur II) the path interpolates geometrically to it, then the Adoption-Speed slider scales it 0.5–1.5×. Elsewhere: damped 3-year CAGR (capped at 35 %/yr, decaying 10 %/yr) — the mode used is labelled on every dashboard.</li>
+      <li><b>Chargers:</b> official network targets interpolate geometrically (Germany: 800 k AC / 200 k DC); otherwise the last three years' mean net additions continue linearly.</li>
+      <li><b>Build-out ticket:</b> additional plugs = max(required − planned, 0), split 80/20 AC/DC; capex, revenue at scenario utilisation (capped by the unserved gap), contribution margin and simple payback are <b>adjustable planning heuristics</b>, not quotes.</li>
+    </ul>
+
+    <h2>Constants <em>with their sources</em></h2>
+    <pre class="formula">14,000 km/yr mileage (KBA federal average) · 19 kWh/100 km mid-range BEV incl. overhead
+×1.12 grid-side charging loss · €0.50/kWh blended CPO retail (model constant)
+11 kW AC (Type 2) · 150 kW DC energy model · 200 kW DC in the AFIR power index
+50 kW weighted plug (11×0.8 + 200×0.2 ≈ 48.8) · 2.2× network head-room factor
+AFIR fleet minimum: ≥ 1.3 kW public charging per registered BEV (EU 2023/1804)</pre>
+
+    <h2>Data &amp; refresh <em>read before citing</em></h2>
+    <p id="auditSrc"></p>
+    <p><b>Refresh cadence — a deliberate choice:</b> fleet and charger statistics move monthly at best (KBA monthly, Bundesnetzagentur periodic, Eurostat/EAFO monthly-to-annual), so the GitHub Action runs <b>monthly</b>; a 12-hour cadence is already wired into the workflow as a commented line for the day live price feeds join the panel. Faster polling of annual statistics would only burn CI minutes, not add information.</p>
+
+    <h2>Open data <em>the JSON is the API</em></h2>
+    <pre class="formula">GET https://&lt;user&gt;.github.io/chargegap-europe/data/countries.json</pre>
+    <p>
+      <button id="dlJson" class="btn-dl" type="button">⬇ countries.json</button>
+      <button id="dlCsv" class="btn-dl" type="button">⬇ panel.csv</button>
+      <button id="dlScenario" class="btn-dl" type="button">⬇ current scenario.csv</button>
+    </p>
+
+    <h2>Credits &amp; lineage</h2>
+    <p>Model architecture, formulas, constants and the Validated-Logic principle come from the author's <b>Strategic Investment Planner: Germany 2030</b> (Tableau, case study for a management consultancy). The analytics track re-implements the quantitative methodology of the master thesis <b>E-Mobility Market Dynamics — Drivers, Regulations, and Infrastructure Analysis</b> (RWTH Aachen University × Numbat GmbH, 2024). ChargeGap Europe is an independent open-source project; the open-data, AFIR-aware product framing is inspired by live-data tools like ChargeIntel (chargeintel.eu), with which this project is <b>not affiliated</b> — ChargeIntel streams live CPO ad-hoc prices, ChargeGap models investment scenarios and market dynamics.</p>
+  </section>
+</main>
+
+<!-- ── Footer ─────────────────────────────────────────────────────────── -->
+<footer>
+  <div class="container foot">
+    <span>Built by <a href="https://itsviru.github.io/VirendraKowale.github.io/" target="_blank" rel="noopener">Virendra Kowale</a> — E-Mobility market strategy × protocol-level engineering<br>
+    <a href="https://www.linkedin.com/in/virendra-kowale" target="_blank" rel="noopener">LinkedIn</a> · <a href="https://github.com/itsViru" target="_blank" rel="noopener">GitHub</a> · MIT License</span>
+    <span>Data snapshot generated <b id="gen"></b> · auto-refresh: monthly<br>No cookies · no tracking · everything runs in your browser</span>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="data/countries.js"></script>
+<script src="js/model.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

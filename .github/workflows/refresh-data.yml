@@ -1,0 +1,43 @@
+name: Refresh market data
+
+on:
+  schedule:
+    # Monthly is the deliberate default: the underlying statistics (KBA,
+    # Bundesnetzagentur, Eurostat/EAFO) move monthly at best, so polling
+    # faster adds CI cost, not information.
+    - cron: "0 6 1 * *"      # 06:00 UTC on the 1st of every month
+    # When live feeds (e.g. national ad-hoc price NAPs) join the panel,
+    # switch to a 12-hour cadence by uncommenting:
+    # - cron: "0 */12 * * *"
+  workflow_dispatch: {}       # manual "Run workflow" button
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ETL dependencies
+        run: pip install -r etl/requirements.txt
+
+      - name: Refresh from Eurostat (+ manual EAFO CSV / overrides if present)
+        run: python etl/fetch_data.py
+
+      - name: Commit refreshed data
+        run: |
+          git config user.name  "chargegap-bot"
+          git config user.email "actions@users.noreply.github.com"
+          if git diff --quiet -- data/; then
+            echo "No data changes."
+          else
+            git add data/countries.json data/countries.js
+            git commit -m "data: monthly refresh from Eurostat ($(date -u +%Y-%m-%d))"
+            git push
+          fi
