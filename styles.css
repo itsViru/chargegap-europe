@@ -1,7 +1,7 @@
 /* ============================================================================
  * ChargeGap Europe — styles
- * Brand tokens shared with itsviru.github.io (dark / acid-lime / Inter +
- * Instrument Serif + JetBrains Mono), tuned for a data instrument:
+ * Brand tokens shared with itsviru.github.io (dark / acid-lime / Geist +
+ * Geist + JetBrains Mono), tuned for a data instrument:
  * denser grids, mono labels, KPI tiles, chart cards.
  * ========================================================================== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -25,8 +25,8 @@
   --warn:      #FFB454;                 /* gap / at-risk */
   --warn-pale: rgba(255,180,84,0.12);
   --bad:       #FF6B6B;
-  --sans:      'Inter', system-ui, sans-serif;
-  --serif:     'Instrument Serif', Georgia, serif;
+  --sans:      'Geist', 'Inter', system-ui, sans-serif;
+  --display:   'Geist', 'Inter', system-ui, sans-serif;
   --mono:      'JetBrains Mono', monospace;
   --ease:      cubic-bezier(0.22, 1, 0.36, 1);
   --max:       1280px;
@@ -52,7 +52,7 @@ button { font-family: inherit; }
 .hdr-inner { display: flex; align-items: center; gap: 1rem; padding: 0.8rem var(--gutter); max-width: var(--max); margin: 0 auto; }
 .brand { display: flex; align-items: center; gap: 0.55em; font-weight: 800; letter-spacing: -0.02em; font-size: 1.02rem; }
 .brand .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--acid); box-shadow: 0 0 12px var(--acid-glow); animation: pulse 2.4s ease-in-out infinite; }
-.brand em { font-family: var(--serif); font-style: italic; font-weight: 400; color: var(--acid); }
+.brand em { font-family: var(--display); font-weight: 500; color: var(--acid); }
 @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1);} 50% { opacity: .6; transform: scale(.85);} }
 .hdr-meta { display: none; font-family: var(--mono); font-size: 0.66rem; color: var(--ink-3); letter-spacing: 0.08em; }
 @media (min-width: 900px) { .hdr-meta { display: inline; } }
@@ -96,8 +96,8 @@ button { font-family: inherit; }
   -webkit-mask-image: radial-gradient(ellipse 70% 90% at 50% 0%, black 0%, transparent 75%);
 }
 .hero h1 { position: relative; font-size: clamp(1.7rem, 4.5vw, 2.9rem); font-weight: 800; letter-spacing: -0.035em; line-height: 1.05; }
-.hero h1 em { font-family: var(--serif); font-style: italic; font-weight: 400; color: var(--acid); }
-.hero p.sub { position: relative; margin-top: 0.55rem; font-family: var(--serif); font-style: italic; color: var(--ink-2); font-size: clamp(0.98rem, 1.6vw, 1.18rem); max-width: 62ch; }
+.hero h1 em { font-family: var(--display); font-weight: 600; color: var(--acid); }
+.hero p.sub { position: relative; margin-top: 0.55rem; font-family: var(--display); font-weight: 400; color: var(--ink-2); font-size: clamp(0.98rem, 1.6vw, 1.18rem); max-width: 62ch; letter-spacing: -0.01em; }
 
 /* ── Country pills ──────────────────────────────────────────────────── */
 .countries { display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 1.1rem 0 0.2rem; position: relative; }
@@ -142,7 +142,7 @@ button { font-family: inherit; }
 .kpi.star { grid-column: span 2; background: linear-gradient(135deg, rgba(182,255,60,0.08), transparent 60%), var(--bg-2); border-color: var(--line-2); }
 @media (max-width: 640px) { .kpi.star { grid-column: span 1; } }
 .kpi .l { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 0.35rem; }
-.kpi .v { font-family: var(--serif); font-style: italic; font-size: 1.55rem; letter-spacing: -0.02em; line-height: 1.05; color: var(--acid); }
+.kpi .v { font-family: var(--display); font-weight: 600; font-size: 1.55rem; letter-spacing: -0.02em; line-height: 1.05; color: var(--acid); }
 .kpi.star .v { font-size: clamp(2rem, 4vw, 2.9rem); }
 .kpi .v.cool { color: var(--supply); }
 .kpi .v.warn { color: var(--warn); }
@@ -158,7 +158,7 @@ button { font-family: inherit; }
 @media (min-width: 900px) { .grid2 { grid-template-columns: 1fr 1fr; } }
 .card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 16px; padding: 1rem 1.1rem 0.8rem; }
 .card h3 { font-size: 0.92rem; font-weight: 700; letter-spacing: -0.01em; }
-.card h3 em { font-family: var(--serif); font-style: italic; font-weight: 400; color: var(--acid); }
+.card h3 em { font-family: var(--display); font-weight: 500; color: var(--acid); }
 .card .sub { font-family: var(--mono); font-size: 0.6rem; color: var(--ink-3); margin: 0.15rem 0 0.6rem; letter-spacing: 0.04em; }
 .chart-wrap { position: relative; height: 250px; }
 .footnote { font-family: var(--mono); font-size: 0.6rem; color: var(--ink-3); line-height: 1.7; padding: 0.4rem 0 2rem; }
@@ -188,7 +188,7 @@ td.good { color: var(--acid); } td.warn { color: var(--warn); } td.bad { color: 
 
 /* ── Methodology ────────────────────────────────────────────────────── */
 .method h2 { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.02em; margin: 1.8rem 0 0.6rem; }
-.method h2 em { font-family: var(--serif); font-style: italic; font-weight: 400; color: var(--acid); }
+.method h2 em { font-family: var(--display); font-weight: 500; color: var(--acid); }
 .method p { color: var(--ink-2); font-weight: 300; font-size: 0.92rem; line-height: 1.75; max-width: 74ch; margin-bottom: 0.7rem; }
 .method p b, .method li b { color: var(--ink); font-weight: 600; }
 .method ul { margin: 0 0 0.8rem 1.2rem; color: var(--ink-2); font-size: 0.9rem; line-height: 1.75; }
@@ -260,7 +260,7 @@ footer { border-top: 1px solid var(--line); margin-top: 2rem; padding: 1.6rem 0 
 .ticket-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.6rem; margin-top: 0.7rem; }
 .tk { background: var(--bg-3); border: 1px solid var(--line); border-radius: 12px; padding: 0.75rem 0.85rem; }
 .tk .l { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 0.3rem; }
-.tk .v { font-family: var(--serif); font-style: italic; font-size: 1.35rem; letter-spacing: -0.02em; color: var(--acid); line-height: 1.05; }
+.tk .v { font-family: var(--display); font-weight: 600; font-size: 1.35rem; letter-spacing: -0.02em; color: var(--acid); line-height: 1.05; }
 .tk .v.cool { color: var(--supply); } .tk .v.warn { color: var(--warn); }
 .tk .s { font-family: var(--mono); font-size: 0.58rem; color: var(--ink-3); margin-top: 0.3rem; line-height: 1.5; }
 .tk-assum { display: flex; flex-wrap: wrap; gap: 0.6rem 1.4rem; margin-top: 0.8rem; font-family: var(--mono); font-size: 0.62rem; color: var(--ink-3); }
