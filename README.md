@@ -8,7 +8,7 @@ ChargeGap Europe answers one question, per market and per scenario:
 
 It extends the author's **[Strategic Investment Planner: Germany 2030](https://github.com/itsViru/EV_Charging_Infrastructure_Analysis_Tool)** (Tableau) from one market to fourteen, and re-implements the quantitative track of the master thesis **[E-Mobility Market Dynamics](https://github.com/itsViru/E-Mobility_Market_Dynamics_Model)** (RWTH Aachen × Numbat GmbH, 2024) so the correlation matrix, OLS regression and VIF diagnostics run **live in the browser** on an open country panel.
 
-No backend. No build step. No tracking. One HTML file, two JS files, one JSON — hostable on GitHub Pages, runnable from a double-clicked `index.html`.
+It runs entirely on your browser. One HTML file, two JS files, one JSON — hostable on GitHub Pages, runnable from a double-clicked `index.html`.
 
 ---
 
