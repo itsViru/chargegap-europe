@@ -23,10 +23,17 @@
     invest: { ...M.INVEST_DEFAULTS },
     tab: "dashboard",
     sort: { key: "score", dir: -1 },
-    site: { preset: "hpc150", inputs: { ...M.SITE_PRESETS.hpc150 } }
+    site: { preset: "hpc150", region: "de", inputs: { ...M.SITE_PRESETS.hpc150, ...M.AFIR_DEFAULTS } }
   };
 
-  /* ── scenario permalinks: #tab/CC/i80ac13dc9s130 ───────────────────── */
+  /* ── scenario permalinks: #tab/CC/i80ac13dc9s130[/x6t2c4000k1o300e20l4y26]
+     Segment 4 (optional, v3.1) encodes the AFIR-2027 terminal inputs:
+       x = flag bits (pubAccess·4 + preAfir·2 + tenvOrSecure·1, 0–7)
+       t = terminal cost line (0 off · 1 on · 2 auto)
+       c = termCapex €  ·  k = termPoints  ·  o = termOpexYr €
+       e = termTxFee ×10 (20 = 2.0%)  ·  l = termLife yrs  ·  y = termYear−2000
+     Omitted when all ten values sit at their defaults, so pre-v3.1 links
+     stay valid and unchanged. Mapping documented in Model Audit. ────────── */
   function encodeParams(p) {
     const n = v => Math.round(v * 100);
     return `i${n(p.intensity)}ac${n(p.acEff)}dc${n(p.dcEff)}s${n(p.speed)}`;
@@ -36,6 +43,24 @@
     if (!m) return null;
     return { intensity: +m[1] / 100, acEff: +m[2] / 100, dcEff: +m[3] / 100, speed: +m[4] / 100 };
   }
+  function encodeAfir(inp) {
+    const i = { ...M.AFIR_DEFAULTS, ...inp };
+    const bits = (i.pubAccess ? 4 : 0) + (i.preAfir ? 2 : 0) + (i.tenvOrSecure ? 1 : 0);
+    const t = (i.termOn === null || i.termOn === undefined) ? 2 : (i.termOn ? 1 : 0);
+    return `x${bits}t${t}c${Math.round(i.termCapex)}k${Math.round(i.termPoints)}` +
+           `o${Math.round(i.termOpexYr)}e${Math.round(i.termTxFee * 10)}` +
+           `l${Math.round(i.termLife)}y${i.termYear - 2000}`;
+  }
+  function decodeAfir(str) {
+    const m = /^x([0-7])t([012])c(\d+)k(\d+)o(\d+)e(\d+)l(\d+)y(\d+)$/.exec(str || "");
+    if (!m) return null;
+    return { pubAccess: !!(+m[1] & 4), preAfir: !!(+m[1] & 2), tenvOrSecure: !!(+m[1] & 1),
+             termOn: +m[2] === 2 ? null : +m[2] === 1,
+             termCapex: +m[3], termPoints: +m[4], termOpexYr: +m[5],
+             termTxFee: +m[6] / 10, termLife: +m[7], termYear: 2000 + +m[8] };
+  }
+  const afirAtDefaults = () =>
+    encodeAfir(state.site.inputs) === encodeAfir(M.AFIR_DEFAULTS);
   (function readHash() {
     const h = location.hash.replace("#", "").split("/");
     if (h[0] === "analytics") h[0] = "site";               // legacy links
@@ -43,9 +68,16 @@
     if (h[1] && CODES.includes(h[1])) state.country = h[1];
     const p = decodeParams(h[2]);
     if (p) state.params = p;
+    const seg4 = (h[3] || "").split("~");
+    const a = decodeAfir(seg4[0]);
+    if (a) Object.assign(state.site.inputs, a);
+    if (seg4[1] && M.SITE_REGIONS[seg4[1]]) state.site.region = seg4[1];
   })();
   function writeHash() {
-    const h = `#${state.tab}/${state.country}/${encodeParams(state.params)}`;
+    const rg = state.site.region !== "de" ? "~" + state.site.region : "";
+    const seg4 = (!afirAtDefaults() || rg)
+      ? `/${encodeAfir(state.site.inputs)}${rg}` : "";
+    const h = `#${state.tab}/${state.country}/${encodeParams(state.params)}` + seg4;
     history.replaceState(null, "", h);
   }
 
@@ -373,13 +405,67 @@
   const stToModel = (v, kind) => kind === "pct" ? v / 100 : kind === "ct" ? v / 100 : v;
   let siteBuilt = false;
 
+  /* AFIR 2027 sub-group (v3.1): 3 duty toggles + chip; cost fields collapse
+     unless the terminal line is on. Copy rule: the tool prices the duty —
+     it never certifies compliance. */
+  const AFIR_TOGGLES = [
+    ["pubAccess", "Publicly accessible?"],
+    ["preAfir", "Commissioned before 13 Apr 2024?"],
+    ["tenvOrSecure", "On TEN-T road network / safe & secure parking?"]
+  ];
+  const AFIR_COSTS = [
+    ["termCapex", "Terminal capex (hw + install + integration)", "€", 250],
+    ["termPoints", "Charge points served by this terminal", "pts", 1],
+    ["termOpexYr", "Terminal service + data fee", "€/yr", 25],
+    ["termTxFee", "Payment-service share on ad-hoc turnover", "%", 0.25],
+    ["termLife", "Terminal replacement cycle", "yrs", 1],
+    ["termYear", "Retrofit year (≤ 2026 meets the deadline)", "", 1]
+  ];
+  const AFIR_STATE_KEYS = [...AFIR_TOGGLES.map(t => t[0]), "termOn", ...AFIR_COSTS.map(c => c[0])];
+
+  /* Region packs (v3.2): the pack overlays VAT, the certificate scheme and
+     sourced price defaults onto the chosen hardware preset; everything else
+     stays an editable DE-calibrated heuristic (see Model Audit provenance). */
+  const RG = () => M.SITE_REGIONS[state.site.region] || M.SITE_REGIONS.de;
+  function applyRegionOverlay() {
+    const p = RG(), base = M.SITE_PRESETS[state.site.preset];
+    state.site.inputs.vat = p.vat;
+    state.site.inputs.thg = p.thg !== undefined ? p.thg : base.thg;
+    state.site.inputs.price = p.priceAC !== undefined
+      ? (state.site.inputs.power <= 22 ? p.priceAC : p.priceDC)
+      : base.price;
+  }
+  function updateRegionCopy() {
+    const p = RG();
+    $('label[for="st-price"] > span:first-child').textContent =
+      `Ad-hoc price (incl. ${Math.round((p.vat - 1) * 100)}% VAT)`;
+    $('label[for="st-thg"] > span:first-child').textContent = p.thgLabel;
+    $("#stBenchScale").textContent = p.scale;
+    $("#stRegionNote").innerHTML = p.note;
+  }
+  function setRegion(k) {
+    state.site.region = k;
+    applyRegionOverlay();
+    $$("#stRegions .chip").forEach(b => b.classList.toggle("on", b.dataset.rg === k));
+    updateRegionCopy();
+    fillSiteInputs(); markSitePreset(); recomputeSite();
+  }
+
   function buildSiteUI() {
     if (siteBuilt) return; siteBuilt = true;
+    $("#stRegions").innerHTML = Object.entries(M.SITE_REGIONS).map(([k, p]) =>
+      `<button class="chip ${k === state.site.region ? "on" : ""}" data-rg="${k}">${p.label}</button>`).join("");
+    $$("#stRegions .chip").forEach(b => b.onclick = () => setRegion(b.dataset.rg));
     $("#stPresets").innerHTML = Object.entries(M.SITE_PRESETS).map(([k, p]) =>
       `<button class="chip ${k === state.site.preset ? "on" : ""}" data-sp="${k}">${p.label}</button>`).join("");
     $$("#stPresets .chip").forEach(b => b.onclick = () => {
       state.site.preset = b.dataset.sp;
-      state.site.inputs = { ...M.SITE_PRESETS[b.dataset.sp] };
+      // preset switch resets charger economics but PRESERVES the AFIR duty
+      // inputs — the site's regulatory situation doesn't change with hardware
+      const keep = {};
+      AFIR_STATE_KEYS.forEach(k => { if (k in state.site.inputs) keep[k] = state.site.inputs[k]; });
+      state.site.inputs = { ...M.SITE_PRESETS[b.dataset.sp], ...M.AFIR_DEFAULTS, ...keep };
+      applyRegionOverlay();
       $$("#stPresets .chip").forEach(x => x.classList.toggle("on", x === b));
       fillSiteInputs(); recomputeSite();
     });
@@ -387,23 +473,65 @@
       <div class="st-group"><h4>${g}</h4>${fields.map(([k, label, unit, step, kind]) => `
         <label class="st-field" for="st-${k}"><span>${label}</span>
           <span class="st-in"><input id="st-${k}" type="number" step="${step}" min="0"> <i>${unit}</i></span>
-        </label>`).join("")}</div>`).join("");
+        </label>`).join("")}</div>`).join("") + `
+      <div class="st-group st-afir"><h4>AFIR 2027 — card-terminal duty</h4>
+        <div id="afirChip" class="afir-chip" role="status"></div>
+        ${AFIR_TOGGLES.map(([k, label]) => `
+        <label class="st-field st-bool" for="st-${k}"><span>${label}</span>
+          <input id="st-${k}" type="checkbox">
+        </label>`).join("")}
+        <label class="st-field st-bool" for="st-termOn"><span>Include terminal cost line
+          <em id="termAuto" class="term-auto"></em></span>
+          <input id="st-termOn" type="checkbox">
+        </label>
+        <div id="afirCosts">
+          ${AFIR_COSTS.map(([k, label, unit, step]) => `
+          <label class="st-field" for="st-${k}"><span>${label}</span>
+            <span class="st-in"><input id="st-${k}" type="number" step="${step}" min="0"> <i>${unit}</i></span>
+          </label>`).join("")}
+          <div class="afir-note">Terminal defaults are editable planning heuristics — replace with your payment provider's quote. Retrofits are often more complex than expected (Eichrecht pairing, integration).</div>
+        </div>
+        <div id="afirIso" class="afir-iso"></div>
+      </div>`;
     ST_FIELDS.forEach(([g, fields]) => fields.forEach(([k, l, u, s, kind]) => {
       $("#st-" + k).addEventListener("input", e => {
         const v = parseFloat(e.target.value);
         if (!isNaN(v) && v >= 0) { state.site.inputs[k] = stToModel(v, kind); markSitePreset(); recomputeSite(); }
       });
     }));
+    AFIR_TOGGLES.forEach(([k]) => {
+      $("#st-" + k).addEventListener("change", e => {
+        state.site.inputs[k] = e.target.checked; recomputeSite();
+      });
+    });
+    $("#st-termOn").addEventListener("change", e => {
+      state.site.inputs.termOn = e.target.checked;      // explicit override of auto
+      recomputeSite();
+    });
+    $("#termAuto").addEventListener("click", e => {
+      e.preventDefault();
+      state.site.inputs.termOn = null;                  // back to auto
+      recomputeSite();
+    });
+    AFIR_COSTS.forEach(([k]) => {
+      $("#st-" + k).addEventListener("input", e => {
+        const v = parseFloat(e.target.value);
+        if (!isNaN(v) && v >= 0) { state.site.inputs[k] = v; recomputeSite(); }
+      });
+    });
     $("#stUtil").addEventListener("input", e => {
       state.site.inputs.util = parseFloat(e.target.value);
       markSitePreset(); recomputeSite();
     });
+    applyRegionOverlay(); updateRegionCopy();
     fillSiteInputs();
   }
   function fillSiteInputs() {
     ST_FIELDS.forEach(([g, fields]) => fields.forEach(([k, l, u, s, kind]) => {
       $("#st-" + k).value = stToUi(k, state.site.inputs[k], kind);
     }));
+    AFIR_TOGGLES.forEach(([k]) => { $("#st-" + k).checked = !!state.site.inputs[k]; });
+    AFIR_COSTS.forEach(([k]) => { $("#st-" + k).value = state.site.inputs[k]; });
     $("#stUtil").value = state.site.inputs.util;
   }
   function markSitePreset() {
@@ -414,16 +542,38 @@
   }
 
   const fmtYrs = v => Number.isFinite(v) ? v.toFixed(1) + " yrs" : "never";
+  const AFIR_CHIP = {
+    NOT_AFFECTED:  { txt: "AFIR terminal duty: not applicable", cls: "muted" },
+    BUILT_IN:      { txt: "AFIR terminal: required since 04/2024 — include in base capex", cls: "cool" },
+    RETROFIT_2027: { txt: "AFIR retrofit due by 01 Jan 2027", cls: "warn" },
+    GRANDFATHERED: { txt: "Grandfathered — no terminal retrofit duty (verify site vs TEN-T map)", cls: "muted" }
+  };
   function recomputeSite() {
-    const s = M.siteCase(state.site.inputs), i = s.inputs, B = M.SITE_BENCHMARKS;
+    const s = M.siteCase(state.site.inputs), i = s.inputs, P = RG();
+    writeHash();
     $("#stUtilOut").textContent = (i.util * 100).toFixed(1) + "%  ·  " + s.hoursDay.toFixed(1) + " h/day  ·  " + s.sessionsDay.toFixed(1) + " sessions/day";
 
+    // AFIR chip + terminal-line state (auto vs manual) + cost-field collapse
+    const chip = AFIR_CHIP[s.afir];
+    const overdue = s.afir === "RETROFIT_2027" && !s.termOn && new Date() >= new Date("2027-01-01");
+    $("#afirChip").textContent = chip.txt;
+    $("#afirChip").className = "afir-chip " + (overdue ? "bad" : chip.cls);
+    $("#st-termOn").checked = s.termOn;
+    $("#termAuto").innerHTML = (state.site.inputs.termOn === null || state.site.inputs.termOn === undefined)
+      ? "auto" : "manual · <u>reset to auto</u>";
+    $("#afirCosts").style.display = s.termOn ? "" : "none";
+    $("#afirIso").innerHTML = !i.preAfir
+      ? `ISO 15118-2 mandatory since 08 Jan 2026 (new/renovated public points); ISO 15118-20 from 01 Jan 2027 — Delegated Reg (EU) 2025/656. Hardware-dependent — not modelled as a cost line.`
+      : "";
+
     const beOk = Number.isFinite(s.uBreakEven);
+    const beDelta = s.termOn && s.base && beOk && Number.isFinite(s.base.uBreakEven)
+      ? (s.uBreakEven - s.base.uBreakEven) * 100 : null;
     $("#stTiles").innerHTML = `
-      <div class="tk"><div class="l">★ Break-even utilisation</div><div class="v ${beOk ? "" : "bad"}">${beOk ? (s.uBreakEven * 100).toFixed(1) + "%" : "—"}</div><div class="s">${beOk ? "EBITDA ≥ 0 above this · capex earned back within lifetime above " + (s.uPayback * 100).toFixed(1) + "%" : "margin per kWh is negative"}</div></div>
+      <div class="tk"><div class="l">★ Break-even utilisation</div><div class="v ${beOk ? "" : "bad"}">${beOk ? (s.uBreakEven * 100).toFixed(1) + "%" : "—"}</div><div class="s">${beOk ? "EBITDA ≥ 0 above this · capex earned back within lifetime above " + (s.uPayback * 100).toFixed(1) + "%" : "margin per kWh is negative"}${beDelta !== null ? `<br><span class="afir-delta">incl. AFIR terminal: +${beDelta.toFixed(beDelta >= 0.1 ? 1 : 2)} pp break-even</span>` : ""}</div></div>
       <div class="tk"><div class="l">EBITDA / yr</div><div class="v ${s.ebitda >= 0 ? "" : "bad"}">${fmtEur(s.ebitda)}</div><div class="s">revenue ${fmtEur(s.revenue)} − costs ${fmtEur(s.costs)}</div></div>
-      <div class="tk"><div class="l">Simple payback</div><div class="v ${Number.isFinite(s.payback) && s.payback <= i.lifetime ? "" : "warn"}">${fmtYrs(s.payback)}</div><div class="s">capex ${fmtEur(s.capex)} · + ${i.delayMonths} mo grid delay before revenue</div></div>
-      <div class="tk"><div class="l">Margin / kWh</div><div class="v ${s.marginKWh > 0 ? "cool" : "bad"}">€${s.marginKWh.toFixed(2)}</div><div class="s">blended net €${s.blendedNet.toFixed(2)} − energy − fees + THG</div></div>
+      <div class="tk"><div class="l">Simple payback</div><div class="v ${Number.isFinite(s.payback) && s.payback <= i.lifetime ? "" : "warn"}">${fmtYrs(s.payback)}</div><div class="s">capex ${fmtEur(s.capex)} · + ${i.delayMonths} mo grid delay before revenue${s.termOn ? " · terminal capex on the cash curve" : ""}</div></div>
+      <div class="tk"><div class="l">Margin / kWh</div><div class="v ${s.marginKWh > 0 ? "cool" : "bad"}">€${s.marginKWh.toFixed(2)}</div><div class="s">blended net €${s.blendedNet.toFixed(2)} − energy − fees${s.termOn ? " − terminal fee" : ""} + THG</div></div>
       <div class="tk"><div class="l">Energy sold / yr</div><div class="v cool">${fmtN(s.energy)} kWh</div><div class="s">${(i.adhocShare * 100).toFixed(0)}% ad-hoc · ${((1 - i.adhocShare) * 100).toFixed(0)}% roaming</div></div>`;
 
     let verdict, cls;
@@ -431,11 +581,14 @@
     if (!beOk) {
       cls = "warn"; verdict = `<b>No utilisation can save this configuration</b> — the margin per kWh is negative. Raise the ad-hoc price, negotiate better roaming terms, or cut the energy cost before anything else.`;
     } else if (u < s.uBreakEven) {
-      cls = "warn"; verdict = `At <b>${(u * 100).toFixed(1)}%</b> this point loses <b>${fmtEur(Math.abs(s.ebitda))}/yr</b>. Break-even sits at <b>${(s.uBreakEven * 100).toFixed(1)}%</b>. For context: German HPC averaged just ${(B.hpcAvg * 100).toFixed(0)}–7% in 2024/25 — this is exactly the market's problem.`;
+      cls = "warn"; verdict = `At <b>${(u * 100).toFixed(1)}%</b> this point loses <b>${fmtEur(Math.abs(s.ebitda))}/yr</b>. Break-even sits at <b>${(s.uBreakEven * 100).toFixed(1)}%</b>. ${P.hpcCtx}`;
     } else if (u < s.uPayback) {
       cls = "warn"; verdict = `Covers its running costs (EBITDA <b>${fmtEur(s.ebitda)}/yr</b>) but will <b>not</b> earn back the ${fmtEur(s.capex)} capex within its ${i.lifetime}-year lifetime — that needs ≥ <b>${(s.uPayback * 100).toFixed(1)}%</b> utilisation.`;
     } else {
-      cls = ""; verdict = `<b>This site pencils.</b> Payback in <b>${fmtYrs(s.payback)}</b> at ${(u * 100).toFixed(1)}% utilisation (${s.sessionsDay.toFixed(1)} sessions/day) — ${((u - s.uBreakEven) * 100).toFixed(1)} pts of buffer above break-even. Note the Ø German occupancy is ${(B.occupancyDE * 100).toFixed(0)}% and only ~1% of HPC sites exceed ${(B.veryGood * 100).toFixed(0)}%: validate the utilisation assumption hardest.`;
+      cls = ""; verdict = `<b>This site pencils.</b> Payback in <b>${fmtYrs(s.payback)}</b> at ${(u * 100).toFixed(1)}% utilisation (${s.sessionsDay.toFixed(1)} sessions/day) — ${((u - s.uBreakEven) * 100).toFixed(1)} pts of buffer above break-even. ${P.penCtx}`;
+    }
+    if (s.afir === "RETROFIT_2027" && !s.termOn) {
+      verdict += `<div class="afir-warn">⚠ This site carries a card-terminal retrofit duty by 01 Jan 2027 that is not priced in.</div>`;
     }
     $("#stVerdict").innerHTML = `<div class="callout ${cls}" style="margin:0 0 0.9rem">${verdict}</div>`;
 
@@ -443,16 +596,18 @@
     const row = (l, v, cls2) => `<tr><td style="text-align:left">${l}</td><td class="mono ${cls2 || ""}">${v}</td></tr>`;
     $("#stPnl").innerHTML =
       row("Charging revenue (net, blended)", fmtEur(s.revCharging)) +
-      row("THG-Quote proceeds", fmtEur(s.revThg)) +
+      row(P.thgLabel, fmtEur(s.revThg)) +
       (i.blocking ? row("Blocking fees", fmtEur(i.blocking)) : "") +
       row("Energy incl. levies", "−" + fmtEur(s.costEnergy)) +
       row("Demand charge (Leistungspreis)", "−" + fmtEur(s.costDemand)) +
       row("Payment & roaming fees", "−" + fmtEur(s.costFees)) +
+      (s.termOn ? row("AFIR terminal fee on ad-hoc turnover", "−" + fmtEur(s.costTermTx)) +
+                  row("AFIR terminal service & data (allocated)", "−" + fmtEur(s.costTermFix)) : "") +
       row("Fixed opex (service, backend, lease)", "−" + fmtEur(s.costFixed)) +
       row("<b>EBITDA</b>", "<b>" + fmtEur(s.ebitda) + "</b>", s.ebitda >= 0 ? "good" : "bad");
 
     // THG stress test
-    $("#stSensHead").innerHTML = `<th>Utilisation ↓</th><th>THG 0 ct</th><th>THG ${Math.round(i.thg * 100)} ct (base)</th><th>THG 15 ct</th>`;
+    $("#stSensHead").innerHTML = `<th>Utilisation ↓</th><th>${P.thgShort} 0 ct</th><th>${P.thgShort} ${Math.round(i.thg * 100)} ct (base)</th><th>${P.thgShort} 15 ct</th>`;
     $("#stSens").innerHTML = [0.75, 1, 1.25].map((f, r) => `<tr>
       <td style="text-align:left">${(i.util * f * 100).toFixed(1)}%${f === 1 ? " (base)" : ""}</td>
       ${s.sens[r].map((v, c) => `<td class="mono ${r === 1 && c === 1 ? "good" : ""}">${Number.isFinite(v) ? v.toFixed(1) : "—"}</td>`).join("")}
@@ -500,6 +655,8 @@
     ];
     $("#auditBody").innerHTML = rows.map(([f, calc, res]) =>
       `<tr><td>${f}</td><td class="mono" style="text-align:left;white-space:normal">${calc}</td><td class="mono good">${res}</td></tr>`).join("");
+    $("#auditRegions").innerHTML = Object.values(M.SITE_REGIONS).map(p =>
+      `<div class="callout" style="margin:0.45rem 0"><b>${p.label}</b> — quality: <b>${p.quality}</b>. ${p.note}</div>`).join("");
     $("#auditSrc").innerHTML =
       `<b>${c.flag} ${c.name}</b> — data quality: <b>${c.quality}</b>. Sources: ${c.sources.join(" · ")}. ` +
       `Germany is verified 1:1 against the original workbook's master dataset (KBA FZ13, 1-Jan convention; Bundesnetzagentur registry; Masterplan Ladeinfrastruktur II targets). ` +

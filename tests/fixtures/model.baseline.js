@@ -455,101 +455,6 @@
   };
 
   const VAT = 1.19;
-  const ECON_DEFAULTS = { vat: VAT };   // v3.2: VAT is a region parameter (default DE 19%)
-
-  /* ------------------------------------------------------------------ */
-  /* Part 4c — Region packs (v3.2): per-region economics defaults,       */
-  /* benchmarks and certificate schemes for the Standort-Check.          */
-  /* Honesty regime: every number carries a source or the word           */
-  /* "heuristic"; packs never silently claim verified status. Economics  */
-  /* fields WITHOUT a sourced override stay DE-calibrated heuristics.    */
-  /* Researched 07/2026 — re-verify quarterly with the market pulse.     */
-  /* ------------------------------------------------------------------ */
-  const SITE_REGIONS = {
-    de: {
-      label: "🇩🇪 DE national", vat: 1.19, quality: "verified",
-      thgLabel: "THG-Quote proceeds", thgShort: "THG",
-      scale: "Ø DE 12% · HPC Ø 6–7% · 15% viability · 30% \"very good\"",
-      hpcCtx: "For context: German HPC averaged just 6–7% in 2024/25 — this is exactly the market's problem.",
-      penCtx: "Note the Ø German occupancy is 12% and only ~1% of HPC sites exceed 30%: validate the utilisation assumption hardest.",
-      note: "Region pack <b>DE national</b> — verified context: Ø occupancy 12% (BDEW 2025) · 16.7 E-Pkw per public point (VDA-Ladenetzranking, 07/2025) · 200,255 points / 8.5 GW, +17% y/y (BNetzA register, 04/2026). Economics defaults are editable planning heuristics.",
-      sources: ["BDEW Elektromobilitätsmonitor 2025", "VDA-E-Ladenetzranking 11/2025 (Stichtag 01.07.2025)", "BNetzA Ladesäulenregister 01.04.2026"]
-    },
-    denrw: {
-      label: "DE · NRW", vat: 1.19, quality: "verified context / DE-heuristic economics",
-      thgLabel: "THG-Quote proceeds", thgShort: "THG",
-      scale: "NRW: 38.4k points (+20% y/y) · coverage rank 14/16 · Ø DE 12% · HPC 6–7%",
-      hpcCtx: "For context: German HPC averaged just 6–7% in 2024/25, and NRW ranks 14/16 on coverage (more than the 16.7 E-Pkw per point DE average) — demand pressure is real, but so is the market's utilisation problem (VDA 11/2025).",
-      penCtx: "Note: Ø German occupancy is 12% (no verified NRW split published) and NRW is now the largest, fastest-growing point market — 38,388 points, +20% y/y (BNetzA 04/2026): validate the utilisation assumption hardest.",
-      note: "Region pack <b>DE · North Rhine-Westphalia</b> — verified context: 33,286 points 07/2025 (VDA/BNetzA) → <b>38,388 points, +20% y/y, largest Bundesland market</b> (BNetzA 04/2026); coverage <b>rank 14/16</b>, i.e. above the 16.7 E-Pkw-per-point national average (VDA 11/2025); most fast-charger additions of all Länder (+2,226/yr to 07/2025). Occupancy: national Ø 12% used — no verified NRW split published. <b>Demand charges are per-DSO</b> (Westnetz, Rheinische NETZGesellschaft, …) — replace the default with your DSO price sheet. All other economics defaults remain DE-national heuristics.",
-      sources: ["VDA-E-Ladenetzranking 11/2025 (Stichtag 01.07.2025)", "BNetzA Ladesäulenregister 01.04.2026 (via statistiken-aktuell.de, geprüft 05/2026)", "BDEW 2025 (national occupancy)"]
-    },
-    nl: {
-      label: "🇳🇱 NL", vat: 1.21, quality: "indicative",
-      thg: 0.10, priceAC: 0.49, priceDC: 0.85,
-      thgLabel: "ERE-certificate proceeds (NEa)", thgShort: "ERE",
-      scale: "NL: ~210k points · ~5–6 EVs/point (EU max density) · mostly AC",
-      hpcCtx: "For context: the Netherlands runs the EU's densest network (~210k points, ~5–6 EVs per public point) — per-point competition, not demand, is usually the binding constraint (RVO via ANP, 01/2026).",
-      penCtx: "Note: NL is coverage-saturated (~5–6 EVs per public point vs 16.7 in DE) — validate local competition and utilisation hardest (RVO 01/2026 · VDA 07/2025).",
-      note: "Region pack <b>🇳🇱 Netherlands</b> (indicative) — ~210k charging points, ~1.2M plug-in EVs → <b>~5–6 EVs per point, EU's densest network, mostly AC</b> (RVO via ANP/NL Times, 01/2026; EVBoosters 2026). Sourced defaults: public AC Ø <b>€0.49/kWh</b>, fast charging Ø <b>€0.85/kWh</b> incl. 21% BTW (Charge24, 05/2026); <b>ERE certificates</b> replaced HBEs on 01.01.2026 (NEa/REV, RED III) — ≈ <b>€0.10/kWh indicative</b>, market-priced and volatile, net proceeds after inboek service fees are lower (Fudura/Groendus 2026). Energy- and grid-cost defaults remain DE-calibrated heuristics — replace with local quotes (nettarieven/energiebelasting differ).",
-      sources: ["RVO via ANP/NL Times 01/2026", "Charge24 05/2026 (price levels)", "NEa ERE scheme 2026; Fudura/Groendus indications", "EVBoosters via IndexBox 2026"]
-    }
-  };
-
-  /* ------------------------------------------------------------------ */
-  /* Part 4b — AFIR 2027 card-terminal duty & retrofit cost line         */
-  /* Legal basis (verified against EUR-Lex, Reg (EU) 2023/1804, Art.     */
-  /* 5(1)): terminal/contactless reader mandatory for publicly           */
-  /* accessible points with a power output "equal to or more than        */
-  /* 50 kW" (⇒ power >= 50, threshold frozen); new builds since          */
-  /* 13 Apr 2024; from 01 Jan 2027 also existing points on the TEN-T     */
-  /* road network or safe & secure parking areas (retrofit duty).        */
-  /* One terminal may serve several points of a pool (Art. 5(1) subpara  */
-  /* 4) — hence the per-point allocation below. Duty does not apply to   */
-  /* points that are free of charge. The tool PRICES the obligation; it  */
-  /* does not certify compliance. All € defaults are editable planning   */
-  /* heuristics — replace with your payment provider's quote.            */
-  /* ------------------------------------------------------------------ */
-
-  const AFIR_STATUS = {
-    NOT_AFFECTED: "NOT_AFFECTED",   // not public, or < 50 kW (web/QR routes suffice)
-    BUILT_IN: "BUILT_IN",           // new build ≥50 kW public: terminal since 13.04.2024
-    RETROFIT_2027: "RETROFIT_2027", // Bestand ≥50 kW on TEN-T/secure parking: by 01.01.2027
-    GRANDFATHERED: "GRANDFATHERED"  // Bestand, public, ≥50 kW, but off TEN-T/secure parking
-  };
-  const AFIR_POWER_KW = 50;         // "equal to or more than 50 kW" — AFIR Art. 5(1)
-
-  const AFIR_DEFAULTS = {
-    pubAccess: true,      // publicly accessible?
-    preAfir: true,        // commissioned before 13 Apr 2024 (Bestandsanlage)?
-    tenvOrSecure: false,  // on TEN-T road network or safe & secure parking area?
-    termOn: null,         // null = auto (on iff RETROFIT_2027); true/false = manual
-    termCapex: 4000,      // € per terminal (hw+install+integration) — heuristic; stele
-                          // solutions serve whole sites; Eichrecht pairing (PTB
-                          // Baumusterprüfbescheinigung) can add integration cost
-    termPoints: 1,        // charge points served by this terminal (allocation divisor)
-    termOpexYr: 300,      // €/yr per terminal — heuristic midpoint (PayOne-type data
-                          // fee ≈ €150/yr + service; IHK: terminal ≈ €13–25/mo)
-    termTxFee: 2.0,       // % of AD-HOC turnover (PayOne ≈ 2%, Mobility House FAQ)
-    termLife: 4,          // yrs — card-scheme rules force replacement ≈ every 4 yrs
-                          // (electrive practitioner analysis)
-    termYear: 2026,       // retrofit year on the cash curve (≤2026 meets 01.01.2027)
-    orderYear: null       // cash-curve anchor (t=0); null → current calendar year
-  };
-
-  /** AFIR terminal-duty status from the 3 toggles + power (decision table). */
-  function afirStatus(i) {
-    if (!i.pubAccess) return AFIR_STATUS.NOT_AFFECTED;
-    if (i.power < AFIR_POWER_KW) return AFIR_STATUS.NOT_AFFECTED;
-    if (!i.preAfir) return AFIR_STATUS.BUILT_IN;
-    if (i.tenvOrSecure) return AFIR_STATUS.RETROFIT_2027;
-    return AFIR_STATUS.GRANDFATHERED;
-  }
-  /** termOn resolution: auto (null) ⇒ true iff the retrofit duty applies. */
-  function resolveTermOn(i, status) {
-    return (i.termOn === null || i.termOn === undefined)
-      ? status === AFIR_STATUS.RETROFIT_2027 : !!i.termOn;
-  }
 
   /**
    * Standort-Check: annual P&L, break-even utilisation, payback and a
@@ -558,117 +463,71 @@
    * with the operator's own cost base for a real investment decision.
    */
   function siteCase(inp) {
-    const i = Object.assign({}, SITE_PRESETS.hpc150, AFIR_DEFAULTS, ECON_DEFAULTS, inp || {});
+    const i = Object.assign({}, SITE_PRESETS.hpc150, inp || {});
     const energy = i.power * C.HOURS_YR * i.util;                       // kWh/yr
     const hoursDay = 24 * i.util;
     const sessionsDay = i.kwhSession > 0 ? energy / 365 / i.kwhSession : 0;
 
-    // AFIR 2027: duty status + terminal cost line (allocated per point).
-    // Sanity anchor: at the HPC-150 validation checkpoint (6.5% util),
-    // enabling the retrofit line with defaults must INCREASE payback and
-    // RAISE break-even utilisation — magnitudes hand-checked in tests/.
-    const afir = afirStatus(i);
-    const termOn = resolveTermOn(i, afir);
-    const termCapexA = i.termCapex / i.termPoints;                      // € one-off, allocated
-    const termOpexA  = i.termOpexYr / i.termPoints;                     // €/yr, allocated
-    const termAnnual = termCapexA / i.termLife;                         // annualised (life ≠ charger life)
-    // Transaction fee applies to the AD-HOC share only — contract/roaming
-    // revenue does not run over the terminal.
-    const termTxPerKWh = termOn ? i.adhocShare * (i.price / i.vat) * (i.termTxFee / 100) : 0;
-
     // Revenue: ad-hoc (driver price incl. 19% VAT → net) + roaming (net) mix,
     // THG proceeds per kWh, optional blocking-fee income.
-    const blendedNet = i.adhocShare * (i.price / i.vat) + (1 - i.adhocShare) * i.roamingNet;
+    const blendedNet = i.adhocShare * (i.price / VAT) + (1 - i.adhocShare) * i.roamingNet;
     const revCharging = energy * blendedNet;
     const revThg = energy * i.thg;
     const revenue = revCharging + revThg + i.blocking;
 
     // Costs: volumetric energy (procurement + levies + volumetric grid fee),
     // demand charge on connection power (Leistungspreis — the German killer
-    // at low utilisation), payment/roaming fees, fixed opex — plus, when the
-    // terminal line is on, its transaction-fee share and fixed service fee.
+    // at low utilisation), payment/roaming fees, fixed opex.
     const costEnergy = energy * i.energyCost;
     const costDemand = i.power * i.demandCharge;
     const costFees = revCharging * i.payFee;
-    const costTermTx = energy * termTxPerKWh;                           // = ad-hoc net rev × fee%
-    const costTermFix = termOn ? termOpexA : 0;
     const costFixed = i.maint + i.backend + i.lease;
-    const costs = costEnergy + costDemand + costFees + costTermTx + costFixed + costTermFix;
+    const costs = costEnergy + costDemand + costFees + costFixed;
 
-    const ebitda = revenue - costs;                                     // EBITDA excludes capex (unchanged convention)
-    const capex = i.hardware + i.install + i.grid;                      // charger capex; terminal capex is annualised/lumped separately
+    const ebitda = revenue - costs;
+    const capex = i.hardware + i.install + i.grid;
 
-    // Contribution margin per kWh (after fees, terminal tx share, energy, THG)
-    const marginKWh = blendedNet * (1 - i.payFee) - termTxPerKWh - i.energyCost + i.thg;
-    const fixedAll = costDemand + costFixed + costTermFix - i.blocking; // covered by margin
+    // Contribution margin per kWh (after fees, energy, THG)
+    const marginKWh = blendedNet * (1 - i.payFee) - i.energyCost + i.thg;
+    const fixedAll = costDemand + costFixed - i.blocking;               // covered by margin
     const denom = i.power * C.HOURS_YR * marginKWh;
     const uBreakEven = marginKWh > 0 ? fixedAll / denom : Infinity;     // EBITDA = 0
     const uPayback = marginKWh > 0
-      ? (capex / i.lifetime + (termOn ? termAnnual : 0) + fixedAll) / denom
-      : Infinity;                                                       // capex (+ annualised terminal) earned back within lifetime
+      ? (capex / i.lifetime + fixedAll) / denom : Infinity;             // capex earned back within lifetime
     const payback = ebitda > 0 ? capex / ebitda : Infinity;
 
-    // Base-case comparison (terminal line off) for the UI delta readout.
-    let base = null;
-    if (termOn) {
-      const m0 = blendedNet * (1 - i.payFee) - i.energyCost + i.thg;
-      const f0 = costDemand + costFixed - i.blocking;
-      const d0 = i.power * C.HOURS_YR * m0;
-      base = {
-        marginKWh: m0,
-        uBreakEven: m0 > 0 ? f0 / d0 : Infinity,
-        uPayback: m0 > 0 ? (capex / i.lifetime + f0) / d0 : Infinity
-      };
-    }
-
     // 10-year monthly cash curve; revenue starts after grid energisation.
-    // Terminal: −termCapexA lump at termYear (relative to the order year),
-    // replacement lump every termLife years thereafter. Terminal RUNNING
-    // costs ride inside steady-state EBITDA from energisation — exact when
-    // termYear equals the order year (the default), a documented planning-
-    // heuristic simplification otherwise.
-    const orderYear = i.orderYear || new Date().getFullYear();
-    const termStartM = termOn ? Math.max(0, (i.termYear - orderYear)) * 12 : null;
     const cash = []; let acc = -capex;
     for (let m = 0; m <= 120; m++) {
-      if (termOn && m >= termStartM && (m - termStartM) % (i.termLife * 12) === 0) acc -= termCapexA;
       if (m > 0 && m > i.delayMonths) acc += ebitda / 12;
       cash.push(acc);
     }
 
     // THG stress test: payback at utilisation ×0.75/1/1.25 × THG {0, base, 15 ct}
-    // (terminal running costs propagate via siteCaseLite when the line is on)
     const sens = [0.75, 1, 1.25].map(f => [0, i.thg, 0.15].map(t => {
-      const s = siteCaseLite(Object.assign({}, i, { util: i.util * f, thg: t, termOn }));
+      const s = siteCaseLite(Object.assign({}, i, { util: i.util * f, thg: t }));
       return s.ebitda > 0 ? capex / s.ebitda : Infinity;
     }));
 
     return { inputs: i, energy, hoursDay, sessionsDay, blendedNet,
              revCharging, revThg, revenue,
              costEnergy, costDemand, costFees, costFixed, costs,
-             afir, termOn, termCapexA, termOpexA, termAnnual, termTxPerKWh,
-             costTermTx, costTermFix, base, termStartM,
              ebitda, capex, marginKWh, uBreakEven, uPayback, payback, cash, sens };
   }
   // EBITDA-only core, reused by the sensitivity grid (no recursion into sens)
   function siteCaseLite(i) {
-    const status = afirStatus(i);
-    const on = resolveTermOn(i, status);
     const energy = i.power * C.HOURS_YR * i.util;
-    const blendedNet = i.adhocShare * (i.price / i.vat) + (1 - i.adhocShare) * i.roamingNet;
+    const blendedNet = i.adhocShare * (i.price / VAT) + (1 - i.adhocShare) * i.roamingNet;
     const revCharging = energy * blendedNet;
     const revenue = revCharging + energy * i.thg + i.blocking;
-    const termTx = on ? energy * i.adhocShare * (i.price / i.vat) * (i.termTxFee / 100) : 0;
-    const termFix = on ? i.termOpexYr / i.termPoints : 0;
     const costs = energy * i.energyCost + i.power * i.demandCharge +
-                  revCharging * i.payFee + termTx + i.maint + i.backend + i.lease + termFix;
+                  revCharging * i.payFee + i.maint + i.backend + i.lease;
     return { ebitda: revenue - costs };
   }
 
   return { C, buildScenario, analytics, analyticsCustom, buildPanel, PANEL_VARS,
            investCase, INVEST_DEFAULTS, opportunityScores, SCORE_WEIGHTS,
            firstYear, linfit,
-           SITE_PRESETS, SITE_BENCHMARKS, SITE_REGIONS, ECON_DEFAULTS, siteCase, VAT,
-           AFIR_STATUS, AFIR_DEFAULTS, AFIR_POWER_KW, afirStatus, resolveTermOn,
+           SITE_PRESETS, SITE_BENCHMARKS, siteCase, VAT,
            _stats: { ols, pearson, tPvalue, ibeta, zscore, inverse } };
 });

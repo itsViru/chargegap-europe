@@ -111,11 +111,13 @@
     <div class="card" style="margin-bottom:0.9rem">
       <h3>Standort-Check <em>does this site pencil?</em></h3>
       <div class="sub">Per-charge-point unit economics under German conditions — THG-Quote, roaming mix, Leistungspreis, BKZ, 19% VAT. Every default is editable; replace with your own cost base. Planning heuristic, not investment advice.</div>
-      <div id="stPresets" class="chips" style="margin:0.5rem 0 0.9rem"></div>
+      <div id="stRegions" class="chips" style="margin:0.5rem 0 0.35rem"></div>
+      <div id="stRegionNote" class="footnote" style="margin:0 0 0.7rem"></div>
+      <div id="stPresets" class="chips" style="margin:0 0 0.9rem"></div>
       <div class="sl" style="max-width:640px">
         <label for="stUtil">Utilisation (share of 8,760 h dispensing at full power) <output id="stUtilOut"></output></label>
         <input id="stUtil" type="range" min="0.005" max="0.40" step="0.005" aria-label="Utilisation">
-        <div class="scale"><span>0.5%</span><span>Ø DE 12% · HPC Ø 6–7% · 15% viability · 30% "very good"</span><span>40%</span></div>
+        <div class="scale"><span>0.5%</span><span id="stBenchScale">Ø DE 12% · HPC Ø 6–7% · 15% viability · 30% "very good"</span><span>40%</span></div>
       </div>
       <div id="stInputs" class="st-cols"></div>
     </div>
@@ -135,10 +137,11 @@
         <div class="tbl-wrap" style="border:0"><table aria-label="Annual P&L"><tbody id="stPnl"></tbody></table></div>
         <div class="sub" style="margin-top:0.7rem">Payback (years) under utilisation ×0.75 / ×1 / ×1.25 vs THG proceeds:</div>
         <div class="tbl-wrap" style="border:0"><table aria-label="THG stress test"><thead><tr id="stSensHead"></tr></thead><tbody id="stSens"></tbody></table></div>
+        <div class="sub" style="margin-top:0.6rem">DE: UBA now charges fees for electricity-quantity certifications · NL: ERE proceeds are market-priced, net of inboek-service fees — small sites: check net certificate proceeds.</div>
       </div>
     </div>
 
-    <p class="footnote">Benchmarks: Ø simultaneous occupancy of all German public points 2025 = <b>12%</b> (BDEW Elektromobilitätsmonitor); HPC average utilisation ≈ <b>6–7%</b>, only ~1% of HPC sites exceed <b>30%</b> ("very good", Ionity via Automobilwoche/Elvah); EU EV Charging Masterplan puts viability at ≈ <b>15%</b> average utilisation. THG-Quote proceeds for public points: ~2–6 ct/kWh (2024), ~3–6 ct (2025), ~<b>8–15 ct expected for 2026</b> — historically volatile, plan conservatively. Grid: below 30 kW connection power no Baukostenzuschuss in low voltage (NAV §11(3)); from roughly one 150 kW unit upwards expect medium voltage, transformer and 12–24 months lead time. Ad-hoc prices are entered <b>incl. 19% VAT</b> (as drivers see them) and converted to net internally; roaming/MSP volume settles below ad-hoc — the mix slider is one of your biggest levers.</p>
+    <p class="footnote">Benchmarks: Ø simultaneous occupancy of all German public points 2025 = <b>12%</b> (BDEW Elektromobilitätsmonitor); HPC average utilisation ≈ <b>6–7%</b>, only ~1% of HPC sites exceed <b>30%</b> ("very good", Ionity via Automobilwoche/Elvah); EU EV Charging Masterplan puts viability at ≈ <b>15%</b> average utilisation. THG-Quote proceeds for public points: ~2–6 ct/kWh (2024), ~3–6 ct (2025), ~<b>8–15 ct expected for 2026</b> — historically volatile, plan conservatively. Grid: below 30 kW connection power no Baukostenzuschuss in low voltage (NAV §11(3)); from roughly one 150 kW unit upwards expect medium voltage, transformer and 12–24 months lead time. Ad-hoc prices are entered <b>incl. the region's VAT</b> (19% DE · 21% NL — as drivers see them) and converted to net internally; roaming/MSP volume settles below ad-hoc — the mix slider is one of your biggest levers. <b>AFIR 2027:</b> the card-terminal duty status derives from your three toggles (Reg (EU) 2023/1804, Art. 5(1)) — unsure whether the site sits on the TEN-T road network? Check the <a href="https://ec.europa.eu/transport/infrastructure/tentec/tentec-portal/map/maps.html" target="_blank" rel="noopener">TEN-T interactive map ↗</a>. Free-of-charge points are exempt. The tool <b>prices</b> the obligation; it does not certify compliance. Terminal defaults are editable planning heuristics — replace with your payment provider's quote.</p>
   </section>
 
   <!-- ── View: Model Audit ──────────────────────────────────────────── -->
@@ -166,6 +169,28 @@
 11 kW AC (Type 2) · 150 kW DC energy model · 200 kW DC in the AFIR power index
 50 kW weighted plug (11×0.8 + 200×0.2 ≈ 48.8) · 2.2× network head-room factor
 AFIR fleet minimum: ≥ 1.3 kW public charging per registered BEV (EU 2023/1804)</pre>
+
+    <h2>Region packs <em>site-economics provenance (v3.2)</em></h2>
+    <div id="auditRegions"></div>
+
+    <h2>AFIR &amp; terminal cost sources <em>v3.1 provenance</em></h2>
+    <pre class="formula">Card-terminal/contactless duty: publicly accessible points "equal to or more than 50 kW" (≥ 50 kW, threshold
+frozen after EUR-Lex check) — Reg (EU) 2023/1804 (AFIR) Art. 5(1) · new builds since 13 Apr 2024
+Retrofit for existing points on the TEN-T road network or safe &amp; secure parking areas: by 01 Jan 2027
+One terminal may serve several points of a recharging pool (Art. 5(1)) → per-point allocation in the model
+Duty does not apply to points that are free of charge · ISO 15118-2 mandatory since 08 Jan 2026 for
+new/renovated public points; ISO 15118-20 from 01 Jan 2027 — Delegated Reg (EU) 2025/656 (informational chip,
+hardware-dependent, not modelled as a cost line)</pre>
+    <ul>
+      <li><b>Terminal capex €4,000</b> per terminal (hardware + install + integration) — <b>heuristic</b>. Separate stele solutions (Hectronic-type) serve whole sites; Eichrecht pairing (PTB Baumusterprüfbescheinigung) can add integration cost — retrofits are often more complex than expected.</li>
+      <li><b>Service + data fee €300/yr</b> per terminal — <b>heuristic midpoint</b>: PayOne-type data fee ≈ €150/yr plus service; generic terminal fixed costs ≈ €13–25/mo (IHK).</li>
+      <li><b>Transaction fee 2.0%</b> of ad-hoc turnover — PayOne ≈ 2% of monthly charger turnover (Mobility House FAQ). Scoped to the ad-hoc share only; contract/roaming volume does not run over the terminal.</li>
+      <li><b>Replacement cycle 4 yrs</b> — card-scheme rules force terminal replacement roughly every 4 years (electrive practitioner analysis); modelled as a recurring capex lump on the 10-year cash curve.</li>
+      <li><b>Charge points per terminal: 1</b> (default) — editable; AFIR explicitly allows one terminal to serve several points of a pool, so allocated cost = terminal cost ÷ points served.</li>
+      <li><b>THG cross-note:</b> UBA now charges fees for electricity-quantity certifications — small sites should check net THG proceeds (M3E/emobilitaet.online, 2026).</li>
+      <li><b>Permalink mapping (hash segment 4, v3.1):</b> <code class="inline">x</code> flag bits = pubAccess·4 + preAfir·2 + tenvOrSecure·1 · <code class="inline">t</code> terminal cost line (0 off / 1 on / 2 auto) · <code class="inline">c</code> terminal capex € · <code class="inline">k</code> points served · <code class="inline">o</code> service fee €/yr · <code class="inline">e</code> transaction fee ×10 · <code class="inline">l</code> replacement cycle yrs · <code class="inline">y</code> retrofit year −2000. The segment is omitted while all ten values sit at their defaults, so pre-v3.1 links remain valid and unchanged.</li>
+    </ul>
+    <p>Copy rule, restated: the Standort-Check <b>prices</b> the AFIR obligation into break-even, EBITDA, payback and the cash curve — it does <b>not</b> certify compliance, and nothing on this page is legal advice.</p>
 
     <h2>Data &amp; refresh <em>read before citing</em></h2>
     <p id="auditSrc"></p>

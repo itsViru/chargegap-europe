@@ -285,3 +285,28 @@ footer { border-top: 1px solid var(--line); margin-top: 2rem; padding: 1.6rem 0 
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
+
+/* ── AFIR 2027 — card-terminal duty (v3.1) ──────────────────────────── */
+.afir-chip {
+  font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.02em;
+  padding: 0.42em 0.75em; border-radius: 8px; margin: 0.15rem 0 0.5rem;
+  border: 1px solid var(--line); color: var(--ink-3); background: var(--bg-3);
+  line-height: 1.5;
+}
+.afir-chip.cool { color: var(--supply); border-color: rgba(90,200,255,0.45); background: var(--supply-pale); }
+.afir-chip.warn { color: var(--warn); border-color: rgba(255,180,84,0.45); background: var(--warn-pale); }
+.afir-chip.bad  { color: var(--bad);  border-color: rgba(255,107,107,0.5);  background: rgba(255,107,107,0.10); }
+.st-bool input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--acid); cursor: pointer; flex: 0 0 auto; }
+.term-auto { font-style: normal; font-family: var(--mono); font-size: 0.56rem; color: var(--ink-4); margin-left: 0.45em; cursor: pointer; }
+.term-auto u { text-decoration-color: var(--line-2); text-underline-offset: 2px; }
+.term-auto:hover { color: var(--ink-2); }
+#afirCosts { border-top: 1px dashed var(--line); margin-top: 0.35rem; padding-top: 0.3rem; }
+.afir-note { font-size: 0.62rem; color: var(--ink-3); line-height: 1.55; padding: 0.4rem 0 0.1rem; }
+.afir-iso {
+  font-family: var(--mono); font-size: 0.58rem; color: var(--supply);
+  line-height: 1.55; margin-top: 0.45rem; padding: 0.4em 0.6em;
+  border: 1px dashed rgba(90,200,255,0.35); border-radius: 8px; background: var(--supply-pale);
+}
+.afir-iso:empty { display: none; border: 0; padding: 0; margin: 0; }
+.afir-delta { color: var(--warn); }
+.afir-warn { margin-top: 0.6rem; padding-top: 0.55rem; border-top: 1px dashed var(--line-2); color: var(--bad); font-weight: 500; }
