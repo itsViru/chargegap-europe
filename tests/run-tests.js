@@ -180,6 +180,8 @@ console.log("\nC. Spec §7 UI tests (jsdom)");
 const HTML = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
 const SRC = {
   data: fs.readFileSync(path.join(ROOT, "data", "countries.js"), "utf8"),
+  geo: fs.readFileSync(path.join(ROOT, "data", "geo.js"), "utf8"),
+  bl: fs.readFileSync(path.join(ROOT, "data", "bundeslaender.js"), "utf8"),
   model: fs.readFileSync(path.join(ROOT, "js", "model.js"), "utf8"),
   app: fs.readFileSync(path.join(ROOT, "js", "app.js"), "utf8")
 };
@@ -203,6 +205,8 @@ function boot(hash) {
     animation: { duration: 0 }
   };
   w.eval(SRC.data);
+  w.eval(SRC.geo);
+  w.eval(SRC.bl);
   w.eval(SRC.model);
   w.eval(SRC.app);
   return { dom, w, d: w.document };
@@ -362,6 +366,92 @@ t("D7 UI: Model Audit renders all region packs with quality flags", () => {
   const { d } = boot("#audit/DE/i80ac13dc9s130");
   const txt = d.body.textContent;
   ["Region packs", "DE · NRW", "🇳🇱 Netherlands", "indicative", "NEa", "Charge24"].forEach(sn =>
+    ok(txt.includes(sn), "audit missing: " + sn));
+});
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Section E — Map view (v3.3): geometry, VDA data integrity, UI flows
+ * ──────────────────────────────────────────────────────────────────────── */
+console.log("\nE. Map view (v3.3)");
+
+const GW = {}; (function(){ const window = GW; eval(SRC.geo); eval(SRC.bl); })();
+
+t("E1 geometry: 14 EU shapes match panel codes; 16 Bundesländer match data layer", () => {
+  const euGeo = Object.keys(GW.CG_GEO.eu.shapes).sort();
+  const euData = JSON.parse(fs.readFileSync(path.join(ROOT, "data", "countries.json")))
+    .countries.map(c => c.code).sort();
+  ok(euGeo.join() === euData.join(), "EU code mismatch: " + euGeo.join());
+  const blGeo = Object.keys(GW.CG_GEO.de.shapes).sort();
+  const blData = Object.keys(GW.CG_BL.laender).sort();
+  ok(blGeo.join() === blData.join(), "DE code mismatch: " + blGeo.join());
+  Object.values(GW.CG_GEO.eu.shapes).concat(Object.values(GW.CG_GEO.de.shapes))
+    .forEach(d => ok(/^M[\d .ZM-]+Z$/.test(d.replace(/\s+/g, " ")), "malformed path"));
+});
+
+t("E2 VDA table self-consistency: exact point sum, documented E-Pkw delta, T-Wert math", () => {
+  const B = GW.CG_BL, L = Object.values(B.laender);
+  ok(L.length === 16, "16 Länder");
+  ok(L.reduce((s, l) => s + l.points, 0) === B.meta.national.points,
+    "points must sum EXACTLY to 172,150");
+  const epkwSum = L.reduce((s, l) => s + l.epkw, 0);
+  ok(B.meta.national.epkw - epkwSum === 3414,
+    "E-Pkw delta must equal the documented 3,414 (unknown district), got " + (B.meta.national.epkw - epkwSum));
+  L.forEach(l => ok(Math.abs(l.tWert - l.epkw / l.points) <= 0.06,
+    l.name + ": published T-Wert inconsistent with epkw/points"));
+});
+
+t("E3 UI: Map tab boots — nav, 14 country paths, 4 metric chips, legend", () => {
+  const { d } = boot("#map/DE/i80ac13dc9s130");
+  ok(d.querySelector('.tabs button[data-tab="map"]').className.includes("active"), "nav active");
+  ok(d.querySelectorAll("#mapSvg .mp").length === 14, "14 paths");
+  ok(d.querySelectorAll("#mapMetrics .chip").length === 4, "4 EU metrics");
+  ok(d.querySelector("#mapLegend").textContent.includes("surplus"), "diverging legend");
+  ok(d.querySelector("#mapCard").textContent.includes("Germany"), "DE preselected from hash country");
+});
+
+t("E4 UI: click France → card + Dashboard deep link carries FR", () => {
+  const { w, d } = boot("#map/DE/i80ac13dc9s130");
+  d.querySelector('#mapSvg .mp[data-c="FR"]').dispatchEvent(new w.Event("click", { bubbles: true }));
+  const card = d.querySelector("#mapCard").textContent;
+  ok(card.includes("France") && card.includes("Revenue Gap"), "card content");
+  ok(w.location.hash.startsWith("#map/FR/"), "hash country updated: " + w.location.hash);
+  d.querySelector("#mGoDash").dispatchEvent(new w.Event("click", { bubbles: true }));
+  ok(w.location.hash.startsWith("#dashboard/FR/"), "deep link: " + w.location.hash);
+});
+
+t("E5 UI: Germany drill-down → 16 Länder; NRW card + Standort deep link with region pack", () => {
+  const { w, d } = boot("#map/DE/i80ac13dc9s130");
+  d.querySelector("#mGoBL").dispatchEvent(new w.Event("click", { bubbles: true }));
+  ok(d.querySelectorAll("#mapSvg .mp").length === 16, "16 Bundesländer");
+  d.querySelector('#mapSvg .mp[data-c="NW"]').dispatchEvent(new w.Event("click", { bubbles: true }));
+  const card = d.querySelector("#mapCard").textContent;
+  ok(card.includes("Nordrhein-Westfalen") && card.includes("33,286") && card.includes("19.5"),
+    "NRW numbers");
+  d.querySelector("#mGoNRW").dispatchEvent(new w.Event("click", { bubbles: true }));
+  ok(w.location.hash.startsWith("#site/") && w.location.hash.includes("~denrw"),
+    "Standort deep link: " + w.location.hash);
+});
+
+t("E6 UI: DE metric switch + back to Europe", () => {
+  const { w, d } = boot("#map/DE/i80ac13dc9s130");
+  d.querySelector("#mGoBL").dispatchEvent(new w.Event("click", { bubbles: true }));
+  d.querySelector('#mapMetrics .chip[data-mm="points"]').dispatchEvent(new w.Event("click", { bubbles: true }));
+  ok(d.querySelector("#mapLegend").textContent.includes("1,272"), "points legend min (Saarland)");
+  d.querySelector("#mapBack").dispatchEvent(new w.Event("click", { bubbles: true }));
+  ok(d.querySelectorAll("#mapSvg .mp").length === 14, "back to 14");
+});
+
+t("E7 UI: NL card offers the Standort-Check region deep link", () => {
+  const { w, d } = boot("#map/NL/i80ac13dc9s130");
+  ok(d.querySelector("#mapCard").textContent.includes("Netherlands"), "NL preselected");
+  d.querySelector("#mGoRegion").dispatchEvent(new w.Event("click", { bubbles: true }));
+  ok(w.location.hash.startsWith("#site/") && w.location.hash.includes("~nl"), "hash: " + w.location.hash);
+});
+
+t("E8 Audit: map provenance + licensing rendered", () => {
+  const { d } = boot("#audit/DE/i80ac13dc9s130");
+  const txt = d.body.textContent;
+  ["Map data & licensing", "Natural Earth", "GeoBasis-DE", "172,150", "3,414", "3,528"].forEach(sn =>
     ok(txt.includes(sn), "audit missing: " + sn));
 });
 

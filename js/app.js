@@ -23,7 +23,8 @@
     invest: { ...M.INVEST_DEFAULTS },
     tab: "dashboard",
     sort: { key: "score", dir: -1 },
-    site: { preset: "hpc150", region: "de", inputs: { ...M.SITE_PRESETS.hpc150, ...M.AFIR_DEFAULTS } }
+    site: { preset: "hpc150", region: "de", inputs: { ...M.SITE_PRESETS.hpc150, ...M.AFIR_DEFAULTS } },
+    map: { mode: "eu", metric: "revGap", sel: null }
   };
 
   /* ── scenario permalinks: #tab/CC/i80ac13dc9s130[/x6t2c4000k1o300e20l4y26]
@@ -64,7 +65,7 @@
   (function readHash() {
     const h = location.hash.replace("#", "").split("/");
     if (h[0] === "analytics") h[0] = "site";               // legacy links
-    if (["dashboard", "compare", "site", "audit"].includes(h[0])) state.tab = h[0];
+    if (["dashboard", "compare", "map", "site", "audit"].includes(h[0])) state.tab = h[0];
     if (h[1] && CODES.includes(h[1])) state.country = h[1];
     const p = decodeParams(h[2]);
     if (p) state.params = p;
@@ -687,6 +688,158 @@
   };
 
   /* ── tabs / sync ───────────────────────────────────────────────────── */
+
+  /* ── Map view (v3.3): choropleth + Bundesland drill-down ──────────── */
+  const GEO = window.CG_GEO, BL = window.CG_BL;
+  const MAPC = { lime: "#B6FF3C", cyan: "#5AC8FF", warn: "#FFB454", base: "#181a14" };
+  const EU_METRICS = {
+    revGap: { label: "\u2605 Revenue Gap 2030", fmt: fmtEur, kind: "div" },
+    score:  { label: "Opportunity Score", fmt: v => v + "/100", kind: "lime" },
+    afir:   { label: "AFIR 2030 (kW/BEV)", fmt: v => v.toFixed(2), kind: "afir" },
+    evpt:   { label: "EVs per point 2030", fmt: v => Math.round(v).toLocaleString("en"), kind: "warm" }
+  };
+  const DE_METRICS = {
+    points: { label: "Ladepunkte", fmt: v => v.toLocaleString("en"), kind: "lime" },
+    tWert:  { label: "E-Pkw je Ladepunkt", fmt: v => v.toFixed(1), kind: "warm" }
+  };
+  function mixHex(a, b, t) {
+    const h = x => [1, 3, 5].map(i => parseInt(x.slice(i, i + 2), 16));
+    const [r1, g1, b1] = h(a), [r2, g2, b2] = h(b);
+    const c = v => Math.round(v).toString(16).padStart(2, "0");
+    return "#" + c(r1 + (r2 - r1) * t) + c(g1 + (g2 - g1) * t) + c(b1 + (b2 - b1) * t);
+  }
+  function fillFor(kind, v, lo, hi) {
+    const e = x => Math.sqrt(Math.max(0, Math.min(1, x)));   // perceptual easing
+    if (kind === "div") {
+      if (v >= 0) return mixHex(MAPC.base, MAPC.lime, e(hi > 0 ? v / hi : 0));
+      return mixHex(MAPC.base, MAPC.cyan, e(lo < 0 ? v / lo : 0));
+    }
+    if (kind === "afir") {
+      const T = 1.3;
+      return v >= T ? mixHex(MAPC.base, MAPC.cyan, e((v - T) / T))
+                    : mixHex(MAPC.base, MAPC.warn, e((T - v) / T));
+    }
+    const col = kind === "warm" ? MAPC.warn : MAPC.lime;
+    return mixHex(MAPC.base, col, e(hi > lo ? (v - lo) / (hi - lo) : 0.5));
+  }
+  function mapLegend(m, lo, hi) {
+    const g = (a, b, c) => c
+      ? `linear-gradient(90deg, ${a}, ${b} 50%, ${c})` : `linear-gradient(90deg, ${a}, ${b})`;
+    let bar, l = m.fmt(lo), mid = "", r = m.fmt(hi);
+    if (m.kind === "div" && lo < 0 && hi > 0) { bar = g(MAPC.cyan, MAPC.base, MAPC.lime); mid = "0 (surplus \u2190 | \u2192 gap)"; }
+    else if (m.kind === "afir") { bar = g(MAPC.warn, MAPC.base, MAPC.cyan); mid = "1.3 kW/BEV (AFIR floor)"; }
+    else bar = g(MAPC.base, m.kind === "warm" ? MAPC.warn : MAPC.lime);
+    $("#mapLegend").innerHTML = `<span>${l}</span><span class="bar" style="background:${bar}"></span>` +
+      (mid ? `<span>${mid}</span><span class="bar" style="background:${bar};visibility:hidden;flex:0 0 0"></span>` : "") +
+      `<span>${r}</span>`;
+  }
+  function gotoSite(regionKey) {
+    if (regionKey && M.SITE_REGIONS[regionKey]) {
+      state.site.region = regionKey;
+      if (siteBuilt) setRegion(regionKey);
+    }
+    state.tab = "site"; sync();
+  }
+  function renderMap() {
+    const mode = state.map.mode, MM = mode === "eu" ? EU_METRICS : DE_METRICS;
+    if (!MM[state.map.metric]) state.map.metric = mode === "eu" ? "revGap" : "tWert";
+    $("#mapMetrics").innerHTML = Object.entries(MM).map(([k, m]) =>
+      `<button class="chip ${k === state.map.metric ? "on" : ""}" data-mm="${k}">${m.label}</button>`).join("");
+    $$("#mapMetrics .chip").forEach(b => b.onclick = () => { state.map.metric = b.dataset.mm; renderMap(); });
+    if (mode === "eu") {
+      $("#mapCrumb").innerHTML = `Europe \u00b7 14 markets \u2014 <b>click a market</b>; Germany offers a Bundesland drill-down.`;
+      renderMapEU();
+    } else {
+      $("#mapCrumb").innerHTML = `<button class="chip" id="mapBack">\u2190 Europe</button>&ensp;Germany \u00b7 16 Bundesl\u00e4nder \u2014 ${BL.meta.source}`;
+      $("#mapBack").onclick = () => { state.map.mode = "eu"; renderMap(); };
+      renderMapDE();
+    }
+  }
+  function renderMapEU() {
+    const m = EU_METRICS[state.map.metric], scores = M.opportunityScores(DATA, state.params);
+    const rows = {};
+    DATA.countries.forEach(c => {
+      const sc = M.buildScenario(c, state.params), r = sc.kpi.y2030;
+      rows[c.code] = { c, revGap: r.revGap, score: scores[c.code].score, afir: r.afir,
+                       evpt: r.evPerPoint, cum: sc.kpi.cumUnmet26_30, fleet: r.fleet };
+    });
+    const vals = Object.values(rows).map(r => r[state.map.metric]);
+    const lo = Math.min(...vals), hi = Math.max(...vals);
+    const sel = GEO.eu.shapes[state.country] ? state.country : null;
+    $("#mapSvg").setAttribute("viewBox", GEO.eu.viewBox);
+    $("#mapSvg").innerHTML = Object.entries(GEO.eu.shapes).map(([code, d]) => {
+      const r = rows[code];
+      return `<path class="mp ${sel === code ? "sel" : ""}" data-c="${code}" d="${d}"` +
+        ` fill="${fillFor(m.kind, r[state.map.metric], lo, hi)}">` +
+        `<title>${r.c.name} \u00b7 ${m.label}: ${m.fmt(r[state.map.metric])}</title></path>`;
+    }).join("");
+    $$("#mapSvg .mp").forEach(p => p.addEventListener("click", () => {
+      state.country = p.dataset.c; writeHash(); renderMap();
+    }));
+    mapLegend(m, lo, hi);
+    euCard(rows[sel]);
+  }
+  function euCard(r) {
+    if (!r) { $("#mapCard").innerHTML = `<div class="footnote">Select a market on the map.</div>`; return; }
+    const q = r.c.quality === "verified" ? "\u2713 verified" : r.c.quality;
+    $("#mapCard").innerHTML = `
+      <h3>${r.c.flag} ${r.c.name} <span class="mq">${q}</span></h3>
+      <div class="mrow"><span>\u2605 Revenue Gap 2030</span><b>${fmtEur(r.revGap)}</b></div>
+      <div class="mrow"><span>Unmet revenue 2026\u201330</span><b>${fmtEur(r.cum)}</b></div>
+      <div class="mrow"><span>Opportunity Score</span><b>${r.score}/100</b></div>
+      <div class="mrow"><span>AFIR 2030</span><b>${r.afir.toFixed(2)} kW/BEV ${r.afir >= 1.3 ? "\u2713" : "\u26a0"}</b></div>
+      <div class="mrow"><span>EVs per point 2030</span><b>${Math.round(r.evpt).toLocaleString("en")}</b></div>
+      <div class="mrow"><span>Fleet 2030</span><b>${fmtN(r.fleet)}</b></div>
+      <div class="mbtns">
+        <button class="chip" id="mGoDash">Open Dashboard \u2192</button>
+        <button class="chip" id="mGoCmp">Compare \u2192</button>
+        ${r.c.code === "DE" ? `<button class="chip on" id="mGoBL">Bundesl\u00e4nder \u2935</button>` : ""}
+        ${M.SITE_REGIONS[r.c.code.toLowerCase()] ? `<button class="chip" id="mGoRegion">Standort-Check ${r.c.flag} \u2192</button>` : ""}
+      </div>
+      <div class="footnote" style="margin-top:0.55rem">Scenario-dependent \u2014 same engine as Dashboard/Compare; audit any number in Model Audit.</div>`;
+    $("#mGoDash").onclick = () => { state.tab = "dashboard"; sync(); };
+    $("#mGoCmp").onclick = () => { state.tab = "compare"; sync(); };
+    const bl = $("#mGoBL"); if (bl) bl.onclick = () => { state.map.mode = "de"; state.map.sel = null; renderMap(); };
+    const rg = $("#mGoRegion"); if (rg) rg.onclick = () => gotoSite(r.c.code.toLowerCase());
+  }
+  function renderMapDE() {
+    const m = DE_METRICS[state.map.metric];
+    const vals = Object.values(BL.laender).map(l => l[state.map.metric]);
+    const lo = Math.min(...vals), hi = Math.max(...vals);
+    $("#mapSvg").setAttribute("viewBox", GEO.de.viewBox);
+    $("#mapSvg").innerHTML = Object.entries(GEO.de.shapes).map(([code, d]) => {
+      const l = BL.laender[code];
+      return `<path class="mp ${state.map.sel === code ? "sel" : ""}" data-c="${code}" d="${d}"` +
+        ` fill="${fillFor(m.kind, l[state.map.metric], lo, hi)}">` +
+        `<title>${l.name} \u00b7 ${m.label}: ${m.fmt(l[state.map.metric])}</title></path>`;
+    }).join("");
+    $$("#mapSvg .mp").forEach(p => p.addEventListener("click", () => {
+      state.map.sel = p.dataset.c; renderMap();
+    }));
+    mapLegend(m, lo, hi);
+    deCard(state.map.sel);
+  }
+  function deCard(code) {
+    if (!code) { $("#mapCard").innerHTML = `<div class="footnote">Select a Bundesland \u2014 colours: ${DE_METRICS[state.map.metric].label}.</div>`; return; }
+    const l = BL.laender[code], N = BL.meta.national;
+    const rank = Object.values(BL.laender).map(x => x.tWert).sort((a, b) => a - b).indexOf(l.tWert) + 1;
+    const share = (l.points / N.points * 100).toFixed(1);
+    const dT = l.tWert - N.tWert;
+    $("#mapCard").innerHTML = `
+      <h3>${l.name} <span class="mq">VDA/BNetzA/KBA \u00b7 01.07.2025</span></h3>
+      <div class="mrow"><span>Ladepunkte</span><b>${l.points.toLocaleString("en")} (${share}% of DE)</b></div>
+      <div class="mrow"><span>E-Pkw (BEV+PHEV)</span><b>${l.epkw.toLocaleString("en")}</b></div>
+      <div class="mrow"><span>E-Pkw je Ladepunkt</span><b>${l.tWert.toFixed(1)} (DE \u00d8 ${N.tWert})</b></div>
+      <div class="mrow"><span>Coverage rank (T-Wert)</span><b>${rank}/16 \u00b7 ${dT >= 0 ? "+" : ""}${dT.toFixed(1)} vs \u00d8</b></div>
+      <div class="mbtns">
+        ${code === "NW" ? `<button class="chip on" id="mGoNRW">Standort-Check \u00b7 NRW pack \u2192</button>` : ""}
+      </div>
+      <div class="footnote" style="margin-top:0.55rem">${code === "NW"
+        ? "Region pack with verified NRW context is wired into the Standort-Check."
+        : "Bundesland economics packs: roadmap \u2014 DE-national defaults apply in the Standort-Check."}${code === "TH" ? " Thüringen: 3,528 points (source-typo correction, see Model Audit)." : ""}</div>`;
+    const b = $("#mGoNRW"); if (b) b.onclick = () => gotoSite("denrw");
+  }
+
   function sync() {
     $$(".tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === state.tab));
     $$(".view").forEach(v => v.classList.toggle("active", v.id === "view-" + state.tab));
@@ -694,6 +847,7 @@
     renderCountries();
     if (state.tab === "dashboard") renderDashboard();
     if (state.tab === "compare") renderCompare();
+    if (state.tab === "map") renderMap();
     if (state.tab === "site") renderSite();
     if (state.tab === "audit") renderAudit();
   }
